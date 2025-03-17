@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mindful Starship: Improved Thought Matching</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #050520;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        
+        canvas {
+            background-color: #000;
+            display: block;
+        }
+        
+        #game-container {
+            position: relative;
+        }
+        
+        #menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        #menu.hidden {
+            display: none;
+        }
+        
+        button {
+            background-color: #4a4dff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 18px;
+            border-radius: 30px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        
+        button:hover {
+            background-color: #7d7fff;
+        }
+        
+        #message {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-size: 18px;
+            opacity: 0;
+            transition: opacity 0.5s;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+        }
+        
+        #ammo-display {
+            position: absolute;
+            top: 60px;
+            left: 20px;
+            color: white;
+            font-size: 16px;
+            text-align: left;
+        }
+        
+        .ammo-item {
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .ammo-color {
+            width: 15px;
+            height: 15px;
+            display: inline-block;
+            margin-right: 10px;
+            border-radius: 50%;
+        }
+        
+        .ammo-count {
+            display: inline-block;
+            width: 25px;
+            text-align: center;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas" width="800" height="600"></canvas>
+        <div id="menu">
+            <h1>Mindful Starship</h1>
+            <p>Collect positive thoughts as ammo to counter negative thoughts</p>
+            <p><strong>Important:</strong> Each positive thought can only counter its matching negative thought</p>
+            <p>Don't let negative thoughts hit your ship!</p>
+            <p><b>Controls:</b> ARROW KEYS to move, NUMBER KEYS 1-5 to select ammo, SPACE to shoot</p>
+            <button id="start-button">Start Game</button>
+        </div>
+        <div id="message"></div>
+        <div id="ammo-display" class="hidden"></div>
+    </div>
+
+    <script>
+        // Get canvas and context
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const ammoDisplay = document.getElementById('ammo-display');
+        
+        // Define specific thought pairs (negative and their positive counter)
+        const thoughtPairs = [
+            {
+                negative: "I'm not enough",
+                positive: "I am worthy as I am",
+                negativeColor: '#ff5050',
+                positiveColor: '#50c8ff'
+            },
+            {
+                negative: "I must be perfect",
+                positive: "Progress matters more than perfection",
+                negativeColor: '#ff7a50',
+                positiveColor: '#50ff8d'
+            },
+            {
+                negative: "I always fail",
+                positive: "I learn from every experience",
+                negativeColor: '#ff50b0',
+                positiveColor: '#a0ff50'
+            },
+            {
+                negative: "Nobody likes me",
+                positive: "I am valued by others",
+                negativeColor: '#b050ff',
+                positiveColor: '#ffff50'
+            },
+            {
+                negative: "I can't handle this",
+                positive: "I am resilient and capable",
+                negativeColor: '#ff5050',
+                positiveColor: '#ff50ff'
+            }
+        ];
+        
+        // Game elements
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height - 50,
+            width: 30,
+            height: 40,
+            speed: 5,
+            color: '#50c8ff',
+            isAlive: true
+        };
+        
+        // Ammo system
+        let ammo = [
+            { type: 0, count: 0 },
+            { type: 1, count: 0 },
+            { type: 2, count: 0 },
+            { type: 3, count: 0 },
+            { type: 4, count: 0 }
+        ];
+        let selectedAmmo = 0;
+        
+        let bullets = [];
+        let negativeThoughts = [];
+        let positiveThoughts = [];
+        let explosions = [];
+        
+        // Game state
+        let score = 0;
+        let health = 100;
+        let gameActive = false;
+        let lastTime = 0;
+        let negativeSpawnTimer = 0;
+        let positiveSpawnTimer = 0;
+        let shootTimer = 0;
+        let frameCount = 0;
+        
+        // Mindfulness messages
+        const messages = [
+            "Notice which thoughts you choose to engage with",
+            "Take a deep breath as you navigate",
+            "Your attention determines your direction",
+            "Only the right positive thought can counter its negative pair",
+            "Each decision shapes your well-being"
+        ];
+        
+        // Controls
+        const keys = {
+            left: false,
+            right: false,
+            up: false,
+            down: false,
+            space: false,
+            number1: false,
+            number2: false,
+            number3: false,
+            number4: false,
+            number5: false
+        };
+        
+        // Event listeners
+        document.getElementById('start-button').addEventListener('click', startGame);
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') keys.left = true;
+            if (e.key === 'ArrowRight') keys.right = true;
+            if (e.key === 'ArrowUp') keys.up = true;
+            if (e.key === 'ArrowDown') keys.down = true;
+            if (e.key === ' ') keys.space = true;
+            if (e.key === '1') selectAmmo(0);
+            if (e.key === '2') selectAmmo(1);
+            if (e.key === '3') selectAmmo(2);
+            if (e.key === '4') selectAmmo(3);
+            if (e.key === '5') selectAmmo(4);
+            
+            // Prevent scrolling with arrow keys
+            if(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].indexOf(e.key) > -1) {
+                e.preventDefault();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft') keys.left = false;
+            if (e.key === 'ArrowRight') keys.right = false;
+            if (e.key === 'ArrowUp') keys.up = false;
+            if (e.key === 'ArrowDown') keys.down = false;
+            if (e.key === ' ') keys.space = false;
+        });
+        
+        // Select ammo type
+        function selectAmmo(type) {
+            if (ammo[type].count > 0) {
+                selectedAmmo = type;
+                updateAmmoDisplay();
+                showMessage(`Selected: "${thoughtPairs[type].positive}"`);
+            } else {
+                showMessage(`No ammo for "${thoughtPairs[type].positive}"`);
+            }
+        }
+        
+        // Update ammo display
+        function updateAmmoDisplay() {
+            ammoDisplay.innerHTML = '';
+            
+            for (let i = 0; i < ammo.length; i++) {
+                const ammoItem = document.createElement('div');
+                ammoItem.className = 'ammo-item';
+                
+                const ammoColor = document.createElement('div');
+                ammoColor.className = 'ammo-color';
+                ammoColor.style.backgroundColor = thoughtPairs[i].positiveColor;
+                
+                const ammoText = document.createElement('div');
+                ammoText.textContent = `${i+1}: ${thoughtPairs[i].positive}`;
+                if (i === selectedAmmo) {
+                    ammoText.style.fontWeight = 'bold';
+                    ammoText.style.color = thoughtPairs[i].positiveColor;
+                }
+                
+                const ammoCount = document.createElement('div');
+                ammoCount.className = 'ammo-count';
+                ammoCount.textContent = ammo[i].count;
+                
+                ammoItem.appendChild(ammoColor);
+                ammoItem.appendChild(ammoText);
+                ammoItem.appendChild(ammoCount);
+                
+                ammoDisplay.appendChild(ammoItem);
+            }
+            
+            ammoDisplay.classList.remove('hidden');
+        }
+        
+        // Game functions
+        function startGame() {
+            document.getElementById('menu').classList.add('hidden');
+            gameActive = true;
+            score = 0;
+            health = 100;
+            bullets = [];
+            negativeThoughts = [];
+            positiveThoughts = [];
+            explosions = [];
+            player.x = canvas.width / 2;
+            player.y = canvas.height - 50;
+            player.isAlive = true;
+            frameCount = 0;
+            
+            // Reset ammo
+            ammo = ammo.map(a => ({ ...a, count: 2 })); // Start with 2 of each
+            selectedAmmo = 0;
+            updateAmmoDisplay();
+            
+            // Start game loop
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+            
+            // Show first message
+            showMessage("Each positive thought counters only its matching negative thought!");
+            
+            // Clear any existing intervals
+            if (window.messageInterval) {
+                clearInterval(window.messageInterval);
+            }
+            
+            // Set interval for mindfulness messages
+            window.messageInterval = setInterval(() => {
+                if (gameActive) {
+                    showMessage(messages[Math.floor(Math.random() * messages.length)]);
+                }
+            }, 15000);
+        }
+        
+        function gameLoop(timestamp) {
+            // Calculate delta time (capped to prevent huge jumps)
+            const deltaTime = Math.min(timestamp - lastTime, 100);
+            lastTime = timestamp;
+            frameCount++;
+            
+            // Clear canvas
+            ctx.fillStyle = '#050520';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw stars
+            drawStars();
+            
+            if (gameActive) {
+                // Update player
+                updatePlayer();
+                
+                // Update bullets
+                updateBullets(deltaTime);
+                
+                // Spawn and update thoughts
+                updateThoughts(deltaTime);
+                
+                // Update explosions
+                updateExplosions();
+                
+                // Check collisions
+                checkCollisions();
+                
+                // Draw UI
+                drawUI();
+                
+                // Check game over
+                if (health <= 0) {
+                    gameOver();
+                }
+                
+                // Continue game loop
+                requestAnimationFrame(gameLoop);
+            }
+        }
+        
+        function updatePlayer() {
+            // Only update if player is alive
+            if (!player.isAlive) return;
+            
+            // Move player
+            if (keys.left) player.x -= player.speed;
+            if (keys.right) player.x += player.speed;
+            if (keys.up) player.y -= player.speed;
+            if (keys.down) player.y += player.speed;
+            
+            // Keep player on screen
+            player.x = Math.max(player.width / 2, Math.min(canvas.width - player.width / 2, player.x));
+            player.y = Math.max(player.height / 2, Math.min(canvas.height - player.height / 2, player.y));
+            
+            // Draw player
+            ctx.fillStyle = player.color;
+            ctx.beginPath();
+            ctx.moveTo(player.x, player.y - player.height / 2);
+            ctx.lineTo(player.x - player.width / 2, player.y + player.height / 2);
+            ctx.lineTo(player.x + player.width / 2, player.y + player.height / 2);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Draw engine glow
+            ctx.fillStyle = 'rgba(255, 150, 50, 0.7)';
+            ctx.beginPath();
+            ctx.ellipse(player.x, player.y + player.height / 3, player.width / 3, player.height / 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        function updateBullets(deltaTime) {
+            // Handle shooting with cooldown
+            shootTimer -= deltaTime;
+            if (keys.space && shootTimer <= 0 && player.isAlive) {
+                // Check if we have ammo of the selected type
+                if (ammo[selectedAmmo].count > 0) {
+                    bullets.push({
+                        x: player.x,
+                        y: player.y - player.height / 2,
+                        width: 4,
+                        height: 15,
+                        speed: 10,
+                        color: thoughtPairs[selectedAmmo].positiveColor,
+                        type: selectedAmmo
+                    });
+                    
+                    // Decrease ammo count
+                    ammo[selectedAmmo].count--;
+                    updateAmmoDisplay();
+                    
+                    shootTimer = 200; // 200ms cooldown between shots
+                } else {
+                    showMessage("Out of ammo for this positive thought!");
+                    shootTimer = 500; // Longer cooldown when out of ammo
+                }
+            }
+            
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                // Move bullets
+                bullets[i].y -= bullets[i].speed;
+                
+                // Remove bullets that are off screen
+                if (bullets[i].y + bullets[i].height < 0) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+                
+                // Draw bullets
+                ctx.fillStyle = bullets[i].color;
+                ctx.fillRect(
+                    bullets[i].x - bullets[i].width / 2,
+                    bullets[i].y - bullets[i].height / 2,
+                    bullets[i].width,
+                    bullets[i].height
+                );
+                
+                // Draw glow effect
+                ctx.fillStyle = bullets[i].color.replace('rgb', 'rgba').replace(')', ', 0.3)');
+                ctx.beginPath();
+                ctx.ellipse(
+                    bullets[i].x,
+                    bullets[i].y,
+                    bullets[i].width * 2,
+                    bullets[i].height / 2,
+                    0, 0, Math.PI * 2
+                );
+                ctx.fill();
+            }
+        }
+        
+        function updateThoughts(deltaTime) {
+            // Spawn negative thoughts (every 2.5 seconds - slower)
+            negativeSpawnTimer += deltaTime;
+            if (negativeSpawnTimer > 2500) {
+                negativeSpawnTimer = 0;
+                const thoughtType = Math.floor(Math.random() * thoughtPairs.length);
+                negativeThoughts.push({
+                    x: Math.random() * (canvas.width - 40) + 20,
+                    y: -20,
+                    radius: 15,
+                    speed: Math.random() * 0.6 + 0.8, // Slower speed
+                    color: thoughtPairs[thoughtType].negativeColor,
+                    type: thoughtType,
+                    text: thoughtPairs[thoughtType].negative,
+                    wobble: {
+                        amplitude: Math.random() * 1.5 + 0.5,
+                        frequency: Math.random() * 0.005 + 0.002,
+                        offset: Math.random() * 1000
+                    }
+                });
+            }
+            
+            // Spawn positive thoughts (every 3.5 seconds - slower)
+            positiveSpawnTimer += deltaTime;
+            if (positiveSpawnTimer > 3500) {
+                positiveSpawnTimer = 0;
+                const thoughtType = Math.floor(Math.random() * thoughtPairs.length);
+                positiveThoughts.push({
+                    x: Math.random() * (canvas.width - 40) + 20,
+                    y: -20,
+                    radius: 15,
+                    speed: Math.random() * 0.4 + 0.7, // Slower speed
+                    color: thoughtPairs[thoughtType].positiveColor,
+                    type: thoughtType,
+                    text: thoughtPairs[thoughtType].positive,
+                    wobble: {
+                        amplitude: Math.random() * 1.5 + 0.5,
+                        frequency: Math.random() * 0.005 + 0.002,
+                        offset: Math.random() * 1000
+                    },
+                    pulse: 0
+                });
+            }
+            
+            // Update negative thoughts
+            for (let i = negativeThoughts.length - 1; i >= 0; i--) {
+                // Move thoughts with wobble
+                negativeThoughts[i].y += negativeThoughts[i].speed;
+                negativeThoughts[i].x += Math.sin(
+                    (frameCount * negativeThoughts[i].wobble.frequency) + 
+                    negativeThoughts[i].wobble.offset
+                ) * negativeThoughts[i].wobble.amplitude;
+                
+                // Remove thoughts that are off screen
+                if (negativeThoughts[i].y - negativeThoughts[i].radius > canvas.height) {
+                    negativeThoughts.splice(i, 1);
+                    continue;
+                }
+                
+                // Draw thoughts
+                ctx.fillStyle = negativeThoughts[i].color;
+                ctx.beginPath();
+                ctx.moveTo(
+                    negativeThoughts[i].x,
+                    negativeThoughts[i].y - negativeThoughts[i].radius
+                );
+                ctx.lineTo(
+                    negativeThoughts[i].x - negativeThoughts[i].radius,
+                    negativeThoughts[i].y + negativeThoughts[i].radius
+                );
+                ctx.lineTo(
+                    negativeThoughts[i].x + negativeThoughts[i].radius,
+                    negativeThoughts[i].y + negativeThoughts[i].radius
+                );
+                ctx.closePath();
+                ctx.fill();
+                
+                // Add a glow
+                const gradient = ctx.createRadialGradient(
+                    negativeThoughts[i].x, negativeThoughts[i].y, 0,
+                    negativeThoughts[i].x, negativeThoughts[i].y, negativeThoughts[i].radius * 2
+                );
+                gradient.addColorStop(0, negativeThoughts[i].color.replace('rgb', 'rgba').replace(')', ', 0.3)'));
+                gradient.addColorStop(1, negativeThoughts[i].color.replace('rgb', 'rgba').replace(')', ', 0)'));
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(
+                    negativeThoughts[i].x, 
+                    negativeThoughts[i].y, 
+                    negativeThoughts[i].radius * 2, 
+                    0, Math.PI * 2
+                );
+                ctx.fill();
+                
+                // Add text label with dark outline for better visibility
+                ctx.font = 'bold 11px Arial';
+                ctx.textAlign = 'center';
+                
+                // Draw text outline for better visibility
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 3;
+                ctx.strokeText(negativeThoughts[i].text, negativeThoughts[i].x, negativeThoughts[i].y + negativeThoughts[i].radius * 2);
+                
+                // Draw text
+                ctx.fillStyle = 'white';
+                ctx.fillText(negativeThoughts[i].text, negativeThoughts[i].x, negativeThoughts[i].y + negativeThoughts[i].radius * 2);
+            }
+            
+            // Update positive thoughts
+            for (let i = positiveThoughts.length - 1; i >= 0; i--) {
+                // Move thoughts with wobble
+                positiveThoughts[i].y += positiveThoughts[i].speed;
+                positiveThoughts[i].x += Math.sin(
+                    (frameCount * positiveThoughts[i].wobble.frequency) + 
+                    positiveThoughts[i].wobble.offset
+                ) * positiveThoughts[i].wobble.amplitude;
+                
+                // Update pulse effect
+                positiveThoughts[i].pulse += 0.05;
+                
+                // Remove thoughts that are off screen
+                if (positiveThoughts[i].y - positiveThoughts[i].radius > canvas.height) {
+                    positiveThoughts.splice(i, 1);
+                    continue;
+                }
+                
+                // Draw thoughts with pulsing effect
+                const pulseSize = Math.sin(positiveThoughts[i].pulse) * 0.2 + 1;
+                
+                ctx.fillStyle = positiveThoughts[i].color;
+                ctx.beginPath();
+                ctx.arc(
+                    positiveThoughts[i].x,
+                    positiveThoughts[i].y,
+                    positiveThoughts[i].radius * pulseSize,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+                
+                // Add a glow
+                const gradient = ctx.createRadialGradient(
+                    positiveThoughts[i].x, positiveThoughts[i].y, 0,
+                    positiveThoughts[i].x, positiveThoughts[i].y, positiveThoughts[i].radius * 3
+                );
+                gradient.addColorStop(0, positiveThoughts[i].color.replace('rgb', 'rgba').replace(')', ', 0.3)'));
+                gradient.addColorStop(1, positiveThoughts[i].color.replace('rgb', 'rgba').replace(')', ', 0)'));
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(
+                    positiveThoughts[i].x, 
+                    positiveThoughts[i].y, 
+                    positiveThoughts[i].radius * 3, 
+                    0, Math.PI * 2
+                );
+                ctx.fill();
+                
+                // Add text label with dark outline for better visibility
+                ctx.font = 'bold 11px Arial';
+                ctx.textAlign = 'center';
+                
+                // Split text into multiple lines if it's too long
+                const maxWidth = 120;
+                const words = positiveThoughts[i].text.split(' ');
+                let lines = [];
+                let currentLine = words[0];
+                
+                for (let j = 1; j < words.length; j++) {
+                    const testLine = currentLine + ' ' + words[j];
+                    const metrics = ctx.measureText(testLine);
+                    
+                    if (metrics.width > maxWidth) {
+                        lines.push(currentLine);
+                        currentLine = words[j];
+                    } else {
+                        currentLine = testLine;
+                    }
+                }
+                lines.push(currentLine);
+                
+                // Draw text outline for better visibility
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 3;
+                
+                for (let j = 0; j < lines.length; j++) {
+                    const y = positiveThoughts[i].y + positiveThoughts[i].radius * 2 + j * 14;
+                    ctx.strokeText(lines[j], positiveThoughts[i].x, y);
+                }
+                
+                // Draw text
+                ctx.fillStyle = 'white';
+                for (let j = 0; j < lines.length; j++) {
+                    const y = positiveThoughts[i].y + positiveThoughts[i].radius * 2 + j * 14;
+                    ctx.fillText(lines[j], positiveThoughts[i].x, y);
+                }
+            }
+        }
+        
+        function createExplosion(x, y, color, size = 1) {
+            // Create multiple particles for the explosion
+            for (let i = 0; i < 10; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 3 + 1;
+                const radius = Math.random() * 5 + 2;
+                const life = Math.random() * 30 + 20;
+                
+                explosions.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    radius: radius * size,
+                    color: color,
+                    life: life,
+                    maxLife: life
+                });
+            }
+        }
+        
+        function updateExplosions() {
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                // Move explosion particles
+                explosions[i].x += explosions[i].vx;
+                explosions[i].y += explosions[i].vy;
+                
+                // Reduce life
+                explosions[i].life--;
+                
+                // Remove dead particles
+                if (explosions[i].life <= 0) {
+                    explosions.splice(i, 1);
+                    continue;
+                }
+                
+                // Draw particles with fading effect
+                const opacity = explosions[i].life / explosions[i].maxLife;
+                ctx.fillStyle = explosions[i].color.replace('rgb', 'rgba').replace(')', `, ${opacity})`);
+                ctx.beginPath();
+                ctx.arc(
+                    explosions[i].x,
+                    explosions[i].y,
+                    explosions[i].radius * opacity,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+            }
+        }
+        
+        function checkCollisions() {
+            // Only check collisions if player is alive
+            if (!player.isAlive) return;
+            
+            // Check bullet-negative thought collisions
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                if (i < 0 || i >= bullets.length) continue;
+                
+                for (let j = negativeThoughts.length - 1; j >= 0; j--) {
+                    if (j < 0 || j >= negativeThoughts.length) continue;
+                    
+                    const dx = bullets[i].x - negativeThoughts[j].x;
+                    const dy = bullets[i].y - negativeThoughts[j].y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < negativeThoughts[j].radius + bullets[i].width) {
+                        // Check if bullet type matches negative thought type (effective counter)
+                        if (bullets[i].type === negativeThoughts[j].type) {
+                            // Perfect counter - destroy and get points
+                            score += 20;
+                            createExplosion(negativeThoughts[j].x, negativeThoughts[j].y, thoughtPairs[bullets[i].type].positiveColor);
+                            showMessage(`Perfect counter! "${thoughtPairs[bullets[i].type].positive}" neutralizes "${thoughtPairs[negativeThoughts[j].type].negative}"`);
+                            
+                            // Remove bullet and thought
+                            bullets.splice(i, 1);
+                            negativeThoughts.splice(j, 1);
+                        } else {
+                            // Imperfect counter - just bounce back with message (no effect)
+                            createExplosion(negativeThoughts[j].x, negativeThoughts[j].y, 'rgb(255, 255, 255)', 0.5);
+                            showMessage(`Mismatch! Try "${thoughtPairs[negativeThoughts[j].type].positive}" for this thought instead.`);
+                            
+                            // Remove only the bullet
+                            bullets.splice(i, 1);
+                        }
+                        
+                        // Break out of inner loop
+                        break;
+                    }
+                }
+            }
+            
+            // Check player-negative thought collisions
+            for (let i = negativeThoughts.length - 1; i >= 0; i--) {
+                if (i < 0 || i >= negativeThoughts.length) continue;
+                
+                const dx = player.x - negativeThoughts[i].x;
+                const dy = player.y - negativeThoughts[i].y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < negativeThoughts[i].radius + player.width / 2) {
+                    // Decrease health
+                    health -= 15;
+                    
+                    // Create explosion
+                    createExplosion(negativeThoughts[i].x, negativeThoughts[i].y, negativeThoughts[i].color);
+                    
+                    // Show message with specific negative thought
+                    showMessage(`"${negativeThoughts[i].text}" impact: -15 well-being`);
+                    
+                    // Remove thought
+                    negativeThoughts.splice(i, 1);
+                    
+                    // Flash the player ship red to indicate damage
+                    const originalColor = player.color;
+                    player.color = '#ff0000';
+                    setTimeout(() => {
+                        if (player.isAlive) { // Only restore color if still alive
+                            player.color = originalColor;
+                        }
+                    }, 200);
+                }
+            }
+            
+            // Check player-positive thought collisions
+            for (let i = positiveThoughts.length - 1; i >= 0; i--) {
+                if (i < 0 || i >= positiveThoughts.length) continue;
+                
+                const dx = player.x - positiveThoughts[i].x;
+                const dy = player.y - positiveThoughts[i].y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < positiveThoughts[i].radius + player.width / 2) {
+                    // Increase score
+                    score += 10;
+                    
+                    // Add ammo of the collected type
+                    ammo[positiveThoughts[i].type].count++;
+                    updateAmmoDisplay();
+                    
+                    // Heal if health is low
+                    if (health < 50) {
+                        health = Math.min(health + 5, 100);
+                    }
+                    
+                    // Create explosion
+                    createExplosion(positiveThoughts[i].x, positiveThoughts[i].y, positiveThoughts[i].color);
+                    
+                    // Show message
+                    showMessage(`Collected "${positiveThoughts[i].text}" ammo (counters "${thoughtPairs[positiveThoughts[i].type].negative}")`);
+                    
+                    // Remove thought
+                    positiveThoughts.splice(i, 1);
+                }
+            }
+        }
+        
+        function drawUI() {
+            // Draw score
+            ctx.fillStyle = 'white';
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(`Score: ${score}`, 20, 30);
+            
+            // Draw health
+            ctx.textAlign = 'right';
+            ctx.fillText(`Well-being: ${health}%`, canvas.width - 20, 30);
+            
+            // Draw health bar
+            ctx.fillStyle = 'rgba(100, 100, 100, 0.5)';
+            ctx.fillRect(canvas.width - 220, 40, 200, 15);
+            
+            if (health > 60) {
+                ctx.fillStyle = 'rgba(0, 255, 100, 0.7)';
+            } else if (health > 30) {
+                ctx.fillStyle = 'rgba(255, 200, 0, 0.7)';
+            } else {
+                ctx.fillStyle = 'rgba(255, 50, 50, 0.7)';
+            }
+            
+            ctx.fillRect(canvas.width - 220, 40, health * 2, 15);
+            
+            // Draw selected ammo indicator
+            ctx.fillStyle = 'white';
+            ctx.textAlign = 'left';
+            ctx.font = '16px Arial';
+            ctx.fillText(`Selected: ${thoughtPairs[selectedAmmo].positive} (${ammo[selectedAmmo].count})`, 20, canvas.height - 20);
+            
+            // Draw key hint
+            ctx.textAlign = 'right';
+            ctx.fillText('Press 1-5 to select positive thought ammo', canvas.width - 20, canvas.height - 20);
+        }
+        
+        function drawStars() {
+            // Draw 100 stars with different sizes and brightness
+            ctx.fillStyle = 'white';
+            for (let i = 0; i < 100; i++) {
+                // Use consistent seed for stable star positions
+                const seed1 = i * 567;
+                const seed2 = i * 323;
+                
+                const x = (Math.sin(seed1) * 0.5 + 0.5) * canvas.width;
+                const y = ((Math.sin(seed2) * 0.5 + 0.5) * canvas.height + frameCount * 0.05 * Math.sin(i)) % canvas.height;
+                const size = (Math.sin(i * 123) * 0.5 + 0.5) * 2 + 1;
+                
+                // Twinkle effect
+                const brightness = (Math.sin(frameCount * 0.05 + i * 45) * 0.5 + 0.5) * 0.5 + 0.5;
+                
+                ctx.globalAlpha = brightness;
+                ctx.fillRect(x, y, size, size);
+            }
+            ctx.globalAlpha = 1.0;
+        }
+        
+        function showMessage(text) {
+            const messageElement = document.getElementById('message');
+            messageElement.textContent = text;
+            messageElement.style.opacity = 1;
+            
+            setTimeout(() => {
+                messageElement.style.opacity = 0;
+            }, 3000);
+        }
+        
+        function gameOver() {
+            gameActive = false;
+            player.isAlive = false;
+            
+            // Create big explosion at player position
+            createExplosion(player.x, player.y, 'rgb(255, 200, 100)', 3);
+            
+            // Clear message interval
+            if (window.messageInterval) {
+                clearInterval(window.messageInterval);
+            }
+            
+            setTimeout(() => {
+                const menu = document.getElementById('menu');
+                menu.innerHTML = `
+                    <h1>Journey Complete</h1>
+                    <p>Final Score: ${score}</p>
+                    <p>Your mindfulness journey has ended, but the insights remain.</p>
+                    <button id="restart-button">Try Again</button>
+                `;
+                menu.classList.remove('hidden');
+                
+                document.getElementById('restart-button').addEventListener('click', startGame);
+            }, 1500);
+        }
+        
+        // Initial stars
+        drawStars();
+    </script>
+</body>
+</html>

@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doodle Jump Style Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #222;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+            width: 500px;
+            height: 700px;
+        }
+        canvas {
+            background-color: #87CEEB;
+            border: 2px solid #333;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+        #controls {
+            color: white;
+            text-align: center;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        #score {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        #height {
+            position: absolute;
+            top: 40px;
+            left: 10px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="500" height="700"></canvas>
+        <div id="score">Score: 0</div>
+        <div id="height">Height: 0</div>
+        <div id="controls">
+            Controls: Left/Right Arrow Keys to move
+        </div>
+    </div>
+
+    <script>
+        // Game initialization
+        window.onload = function() {
+            // Canvas setup
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            const scoreElement = document.getElementById('score');
+            const heightElement = document.getElementById('height');
+            
+            // Game variables
+            let score = 0;
+            let maxHeight = 0;
+            let currentHeight = 0;
+            let gameOver = false;
+            let cameraPosY = 0;
+            
+            // Player properties
+            const player = {
+                x: canvas.width / 2 - 25,
+                y: 400,
+                width: 50,
+                height: 50,
+                speed: 5,
+                velX: 0,
+                velY: 0,
+                jumpStrength: 15,
+                color: '#FF5733',
+                facingRight: true,
+                onPlatform: false
+            };
+            
+            // Game physics
+            const gravity = 0.4;
+            const friction = 0.7;
+            
+            // Platform pool
+            let platforms = [];
+            let coins = [];
+            let enemies = [];
+            let powerups = [];
+            
+            // Platform types
+            // Type 1: Positive self-compassion platforms (solid)
+            const type1Platforms = [
+                { color: '#4F8F00', text: "You've got this!", type: "normal" },
+                { color: '#4F8F00', text: "Be kind to yourself", type: "normal" },
+                { color: '#4F8F00', text: "You are enough", type: "normal" },
+                { color: '#4F8F00', text: "One step at a time", type: "normal" },
+                { color: '#4F8F00', text: "Believe in yourself", type: "normal" },
+                { color: '#4F8F00', text: "Progress not perfection", type: "normal" },
+                { color: '#4F8F00', text: "Take a breath", type: "normal" },
+                { color: '#4F8F00', text: "Self-compassion", type: "bounce" },
+                { color: '#4F8F00', text: "Keep moving forward", type: "moving" },
+                { color: '#4F8F00', text: "You're worthy", type: "normal" }
+            ];
+            
+            // Type 2: Negative debilitating platforms (fall through)
+            const type2Platforms = [
+                { color: '#4F8F00', text: "You'll never make it", type: "negative" },
+                { color: '#4F8F00', text: "Why even try?", type: "negative" },
+                { color: '#4F8F00', text: "You're not good enough", type: "negative" },
+                { color: '#4F8F00', text: "Everyone else is better", type: "negative" },
+                { color: '#4F8F00', text: "This is too hard", type: "negative" },
+                { color: '#4F8F00', text: "You always fail", type: "negative" },
+                { color: '#4F8F00', text: "Don't bother trying", type: "negative" },
+                { color: '#4F8F00', text: "It's all your fault", type: "negative" },
+                { color: '#4F8F00', text: "Just give up", type: "negative" }
+            ];
+            
+            // Key states
+            const keys = {
+                right: false,
+                left: false
+            };
+            
+            // Event listeners
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'ArrowRight') keys.right = true;
+                if (e.key === 'ArrowLeft') keys.left = true;
+            });
+            
+            document.addEventListener('keyup', function(e) {
+                if (e.key === 'ArrowRight') keys.right = false;
+                if (e.key === 'ArrowLeft') keys.left = false;
+            });
+            
+            // Initialize platforms
+            function initPlatforms() {
+                // Create initial platforms
+                platforms = [];
+                
+                // Add ground platform
+                platforms.push({
+                    x: canvas.width / 2 - 75,
+                    y: player.y + 100,
+                    width: 150,
+                    height: 20,
+                    color: '#3C2F10',
+                    type: "normal",
+                    text: "Start your journey!",
+                    isKeyPlatform: true
+                });
+                
+                // Generate a broader distribution of initial platforms
+                let lastY = player.y + 100;
+                for (let i = 0; i < 15; i++) {
+                    // More varied heights and positions
+                    lastY -= (Math.random() * 40 + 60); // Random gap between 60-100px
+                    generatePlatform(lastY);
+                }
+            }
+            
+            // Store the path of key platforms (the guaranteed route upward)
+            let safePathX = canvas.width / 2;
+            
+            // Generate a platform at a specific height
+            function generatePlatform(heightPos, forcePositive = false) {
+                const platformWidth = Math.random() * 70 + 80; // Random width between 80 and 150
+                
+                // Create a guaranteed path of positive platforms
+                // Every third platform will be a key platform in the safe path
+                const isKeyPlatform = platforms.length % 3 === 0;
+                
+                let platformX;
+                let platformType;
+                
+                if (isKeyPlatform || forcePositive) {
+                    // FOR KEY PLATFORMS (the guaranteed path) or FORCED POSITIVE:
+                    
+                    // 1. Always use Type 1 (positive/solid) platforms
+                    platformType = type1Platforms[Math.floor(Math.random() * type1Platforms.length)];
+                    
+                    // 2. Calculate the safe path position with much more variation
+                    // Create a zigzag that uses the full width of the screen
+                    
+                    // Get a random position across the full width of the screen
+                    // But make sure it's always reachable from the previous platform
+                    if (platforms.length > 0) {
+                        const lastKeyPlatforms = platforms.filter(p => p.isKeyPlatform).slice(-2);
+                        
+                        if (lastKeyPlatforms.length > 0) {
+                            const lastKeyPlatform = lastKeyPlatforms[0];
+                            
+                            // Calculate max jump distance based on player jump strength
+                            const jumpDistance = player.jumpStrength * 3;
+                            
+                            // Choose a random direction - favor direction away from center
+                            let direction;
+                            if (lastKeyPlatform.x < canvas.width / 3) {
+                                direction = Math.random() > 0.3 ? 1 : -1; // More likely to go right
+                            } else if (lastKeyPlatform.x > (canvas.width * 2/3)) {
+                                direction = Math.random() > 0.3 ? -1 : 1; // More likely to go left
+                            } else {
+                                direction = Math.random() > 0.5 ? 1 : -1; // Random
+                            }
+                            
+                            // Move in that direction by a random amount (between 40% and 90% of jump distance)
+                            const moveAmount = (0.4 + Math.random() * 0.5) * jumpDistance * direction;
+                            
+                            // Calculate new X position
+                            let newX = lastKeyPlatform.x + moveAmount;
+                            
+                            // Make sure the platform is fully on screen
+                            newX = Math.max(10, Math.min(canvas.width - platformWidth - 10, newX));
+                            
+                            platformX = newX;
+                        } else {
+                            // First platform or if no key platforms found
+                            platformX = Math.random() * (canvas.width - platformWidth);
+                        }
+                    } else {
+                        // First platform
+                        platformX = Math.random() * (canvas.width - platformWidth);
+                    }
+                    
+                    // Update safe path X for reference
+                    safePathX = platformX;
+                    
+                } else {
+                    // FOR NON-KEY PLATFORMS:
+                    
+                    // Determine platform type - 50/50 between positive and negative
+                    if (Math.random() < 0.5) {
+                        platformType = type1Platforms[Math.floor(Math.random() * type1Platforms.length)];
+                    } else {
+                        platformType = type2Platforms[Math.floor(Math.random() * type2Platforms.length)];
+                    }
+                    
+                    // Random position anywhere on screen
+                    platformX = Math.random() * (canvas.width - platformWidth);
+                }
+                
+                // Create the platform
+                const platform = {
+                    x: platformX,
+                    y: heightPos,
+                    width: platformWidth,
+                    height: 20,
+                    color: platformType.color,
+                    type: platformType.type,
+                    text: platformType.text,
+                    velX: 0,
+                    isKeyPlatform: isKeyPlatform
+                };
+                
+                // Add properties based on platform type
+                if (platform.type === "moving") {
+                    // For moving platforms, limit movement range to prevent it from moving too far
+                    platform.velX = (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 1.5 + 0.5);
+                    platform.originalX = platformX;
+                    platform.moveRange = platformWidth * 1.5; // Allow slightly more movement
+                }
+                
+                platforms.push(platform);
+                
+                // Only add coins/enemies/powerups to solid (Type 1) platforms
+                if (platform.type !== "negative") {
+                    // Maybe add a coin above this platform (15% chance)
+                    if (Math.random() < 0.15) {
+                        coins.push({
+                            x: platformX + platformWidth / 2 - 7.5,
+                            y: heightPos - 30,
+                            width: 15,
+                            height: 15,
+                            collected: false,
+                            color: '#FFD700'
+                        });
+                    }
+                    
+                    // Add enemies to non-key platforms that are positive (20% chance)
+                    if (!platform.isKeyPlatform && Math.random() < 0.2) {
+                        enemies.push({
+                            x: platformX + platformWidth / 2 - 15,
+                            y: heightPos - 20,
+                            width: 30,
+                            height: 20,
+                            platformId: platforms.length - 1,
+                            direction: Math.random() > 0.5 ? 1 : -1,
+                            speed: Math.random() * 0.8 + 0.4,
+                            color: '#FF0000'
+                        });
+                    }
+                    
+                    // Maybe add a powerup (higher chance on key platforms)
+                    if ((platform.isKeyPlatform && Math.random() < 0.12) || Math.random() < 0.04) {
+                        const types = ["spring", "jetpack"];
+                        const randomPowerupType = types[Math.floor(Math.random() * types.length)];
+                        powerups.push({
+                            x: platformX + platformWidth / 2 - 10,
+                            y: heightPos - 20,
+                            width: 20,
+                            height: 20,
+                            type: randomPowerupType,
+                            color: randomPowerupType === "spring" ? '#0066CC' : '#CC6600',
+                            active: false,
+                            duration: 0
+                        });
+                    }
+                }
+            }
+            
+            // Game loop
+            function gameLoop() {
+                // Clear the canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                if (!gameOver) {
+                    // Player movement
+                    if (keys.right) {
+                        player.velX = player.speed;
+                        player.facingRight = true;
+                    } else if (keys.left) {
+                        player.velX = -player.speed;
+                        player.facingRight = false;
+                    } else {
+                        player.velX = 0;
+                    }
+                    
+                    // Apply physics
+                    player.x += player.velX;
+                    player.velY += gravity;
+                    
+                    // Screen wrapping (player can go off one side and appear on the other)
+                    if (player.x > canvas.width) {
+                        player.x = 0;
+                    } else if (player.x < 0) {
+                        player.x = canvas.width;
+                    }
+                    
+                    // Camera follows player only when moving up
+                    if (player.y < 300 && player.velY < 0) {
+                        // Move camera up
+                        cameraPosY -= player.velY;
+                        // Also move platforms down
+                        for (let i = 0; i < platforms.length; i++) {
+                            platforms[i].y -= player.velY;
+                        }
+                        // Move coins down
+                        for (let i = 0; i < coins.length; i++) {
+                            coins[i].y -= player.velY;
+                        }
+                        // Move enemies down
+                        for (let i = 0; i < enemies.length; i++) {
+                            enemies[i].y -= player.velY;
+                        }
+                        // Move powerups down
+                        for (let i = 0; i < powerups.length; i++) {
+                            powerups[i].y -= player.velY;
+                        }
+                    } else {
+                        // Player moves normally
+                        player.y += player.velY;
+                    }
+                    
+                    // Check if player fell off the bottom
+                    if (player.y > canvas.height) {
+                        gameOver = true;
+                    }
+                    
+                    // Track height (score based on max height reached)
+                    currentHeight = Math.floor(cameraPosY / 10);
+                    if (currentHeight > maxHeight) {
+                        maxHeight = currentHeight;
+                        // Award points for height
+                        score = Math.floor(maxHeight);
+                        scoreElement.textContent = `Score: ${score}`;
+                        heightElement.textContent = `Height: ${maxHeight}`;
+                    }
+                    
+                    // Platform collision and clean-up
+                    player.onPlatform = false;
+                    for (let i = 0; i < platforms.length; i++) {
+                        const p = platforms[i];
+                        
+                        // Update moving platforms
+                        if (p.type === "moving") {
+                            p.x += p.velX;
+                            
+                            // Limit movement for key platforms to ensure they stay in the safe path
+                            if (p.isKeyPlatform) {
+                                if (Math.abs(p.x - p.originalX) > p.moveRange/2) {
+                                    p.velX *= -1;
+                                }
+                            } else if (p.x <= 0 || p.x + p.width >= canvas.width) {
+                                p.velX *= -1;
+                            }
+                        }
+                        
+                        // Check platform-player collision only if it's not a negative thought platform
+                        if (p.type !== "negative" && 
+                            player.velY > 0 && // Only check when player is falling
+                            player.x + player.width > p.x && 
+                            player.x < p.x + p.width &&
+                            player.y + player.height > p.y && 
+                            player.y + player.height < p.y + p.height + 10) {
+                            
+                            if (p.type === "breaking") {
+                                // Breaking platform disappears after landing
+                                setTimeout(() => {
+                                    p.broken = true;
+                                }, 200);
+                            } else if (p.type === "bounce") {
+                                // Bounce platform gives extra jump
+                                player.velY = -player.jumpStrength * 1.5;
+                            } else {
+                                // Normal jump from platform
+                                player.velY = -player.jumpStrength;
+                            }
+                            player.onPlatform = true;
+                        }
+                        
+                        // Remove platforms that are far below view
+                        if (p.y > canvas.height + 100 || p.broken) {
+                            platforms.splice(i, 1);
+                            i--;
+                            continue;
+                        }
+                    }
+                    
+                    // Generate new platforms as player climbs higher
+                    const highestPlatform = platforms.reduce((max, p) => 
+                        p.y < max.y ? p : max, {y: canvas.height});
+                            
+                    // Calculate distance between platforms - make it more varied as you get higher
+                    let verticalGap = Math.random() * 40 + 50; // Random between 50-90
+                    
+                    // Increase the minimum gap slightly as score increases for challenge
+                    // But cap it to keep game playable
+                    verticalGap = Math.min(90, 50 + (Math.random() * 40) + (currentHeight / 1000 * 20));
+                    
+                    // Calculate the max jump height for reference
+                    const maxJumpHeight = player.jumpStrength * player.jumpStrength / (2 * gravity);
+                    
+                    // Generate new platforms to maintain around 12 platforms
+                    while (platforms.length < 12) {
+                        const newPlatformY = highestPlatform.y - verticalGap;
+                        // Track whether this will become a positive platform
+                        let forcePositive = false;
+                        
+                        // Check vertical distance to nearest positive platform below
+                        const positiveBelow = platforms.filter(p => 
+                            p.type !== "negative" && p.y > newPlatformY
+                        ).sort((a, b) => a.y - b.y);
+                        
+                        if (positiveBelow.length > 0) {
+                            const nearestPositive = positiveBelow[0];
+                            const verticalDistance = nearestPositive.y - newPlatformY;
+                            
+                            // If distance to next positive platform is too large (more than 7/8 of max jump height)
+                            // Force this to be a positive platform
+                            if (verticalDistance > maxJumpHeight * 0.875) {
+                                forcePositive = true;
+                            }
+                        }
+                        
+                        generatePlatform(newPlatformY, forcePositive);
+                        verticalGap = Math.random() * 40 + 50; // Reset for next platform
+                    }
+                    
+                    // Force spawn at least one enemy if none exist and player is above a threshold
+                    if (enemies.length === 0 && currentHeight > 100) {
+                        // Find a suitable platform for an enemy
+                        const possiblePlatforms = platforms.filter(p => 
+                            p.type !== "negative" && !p.isKeyPlatform && 
+                            p.y < canvas.height && p.y > 0
+                        );
+                        
+                        if (possiblePlatforms.length > 0) {
+                            const platform = possiblePlatforms[Math.floor(Math.random() * possiblePlatforms.length)];
+                            enemies.push({
+                                x: platform.x + platform.width / 2 - 15,
+                                y: platform.y - 20,
+                                width: 30,
+                                height: 20,
+                                platformId: platforms.indexOf(platform),
+                                direction: Math.random() > 0.5 ? 1 : -1,
+                                speed: Math.random() * 0.8 + 0.5,
+                                color: '#FF0000'
+                            });
+                        }
+                    }
+                    
+                    // Check for coin collection
+                    for (let i = 0; i < coins.length; i++) {
+                        // Remove coins that are far below view
+                        if (coins[i].y > canvas.height + 100) {
+                            coins.splice(i, 1);
+                            i--;
+                            continue;
+                        }
+                        
+                        if (!coins[i].collected && 
+                            player.x < coins[i].x + coins[i].width &&
+                            player.x + player.width > coins[i].x &&
+                            player.y < coins[i].y + coins[i].height &&
+                            player.y + player.height > coins[i].y) {
+                            coins[i].collected = true;
+                            score += 50;
+                            scoreElement.textContent = `Score: ${score}`;
+                            // Create coin effect
+                            createCoinEffect(coins[i].x, coins[i].y);
+                            coins.splice(i, 1);
+                            i--;
+                        }
+                    }
+                    
+                    // Check for powerup collection
+                    for (let i = 0; i < powerups.length; i++) {
+                        // Remove powerups that are far below view
+                        if (powerups[i].y > canvas.height + 100) {
+                            powerups.splice(i, 1);
+                            i--;
+                            continue;
+                        }
+                        
+                        if (!powerups[i].active && 
+                            player.x < powerups[i].x + powerups[i].width &&
+                            player.x + player.width > powerups[i].x &&
+                            player.y < powerups[i].y + powerups[i].height &&
+                            player.y + player.height > powerups[i].y) {
+                            
+                            if (powerups[i].type === "spring") {
+                                // Spring gives a huge jump
+                                player.velY = -player.jumpStrength * 2.5;
+                                // Remove spring after use
+                                powerups.splice(i, 1);
+                                i--;
+                            } else if (powerups[i].type === "jetpack") {
+                                // Jetpack gives temporary continuous upward movement
+                                powerups[i].active = true;
+                                powerups[i].duration = 100; // Duration in frames
+                                player.color = '#CC6600'; // Change player color during jetpack
+                                player.hasJetpack = true;
+                            }
+                        }
+                    }
+                    
+                    // Update active powerups
+                    if (player.hasJetpack) {
+                        let jetpackActive = false;
+                        for (let i = 0; i < powerups.length; i++) {
+                            if (powerups[i].active && powerups[i].type === "jetpack") {
+                                jetpackActive = true;
+                                powerups[i].duration--;
+                                // Apply jetpack effect (constant upward motion)
+                                player.velY = -player.jumpStrength * 0.8;
+                                
+                                // Draw jetpack flame
+                                drawJetpackFlame();
+                                
+                                if (powerups[i].duration <= 0) {
+                                    powerups.splice(i, 1);
+                                    i--;
+                                    player.color = '#FF5733'; // Reset player color
+                                    player.hasJetpack = false;
+                                }
+                            }
+                        }
+                        if (!jetpackActive) {
+                            player.color = '#FF5733'; // Reset player color if no jetpack
+                            player.hasJetpack = false;
+                        }
+                    }
+                    
+                    // Update and check enemy collisions
+                    for (let i = 0; i < enemies.length; i++) {
+                        const enemy = enemies[i];
+                        
+                        // Remove enemies that are far below view
+                        if (enemy.y > canvas.height + 100) {
+                            enemies.splice(i, 1);
+                            i--;
+                            continue;
+                        }
+                        
+                        // Move enemies on their platforms
+                        if (enemy.platformId < platforms.length) {
+                            const platform = platforms[enemy.platformId];
+                            
+                            // If platform still exists and is visible on screen
+                            if (platform && platform.y < canvas.height + 50 && platform.y > -50) {
+                                enemy.x += enemy.speed * enemy.direction;
+                                
+                                // Keep enemy on platform
+                                if (enemy.x <= platform.x || enemy.x + enemy.width >= platform.x + platform.width) {
+                                    enemy.direction *= -1;
+                                }
+                            }
+                        } else {
+                            // Platform is gone, make enemy patrol in a default way
+                            enemy.x += enemy.speed * enemy.direction;
+                            
+                            // Keep enemy on screen
+                            if (enemy.x <= 0 || enemy.x + enemy.width >= canvas.width) {
+                                enemy.direction *= -1;
+                            }
+                        }
+                        
+                        // Check for player collision with enemy
+                        if (player.x < enemy.x + enemy.width &&
+                            player.x + player.width > enemy.x &&
+                            player.y < enemy.y + enemy.height &&
+                            player.y + player.height > enemy.y) {
+                            
+                            // If player is falling onto enemy from above
+                            if (player.velY > 0 && player.y + player.height < enemy.y + enemy.height / 2) {
+                                // Remove the enemy
+                                enemies.splice(i, 1);
+                                i--;
+                                // Bounce player
+                                player.velY = -player.jumpStrength;
+                                // Add score
+                                score += 100;
+                                scoreElement.textContent = `Score: ${score}`;
+                            } else {
+                                // Player collided with enemy from the side or below
+                                gameOver = true;
+                            }
+                        }
+                    }
+                    
+                    // Draw background elements
+                    drawBackground();
+                    
+                    // Draw platforms
+                    for (let i = 0; i < platforms.length; i++) {
+                        // Draw platform background
+                        ctx.fillStyle = platforms[i].color;
+                        
+                        // All platforms look the same, regardless of type
+                        ctx.fillRect(platforms[i].x, platforms[i].y, platforms[i].width, platforms[i].height);
+                        
+                        // Add a glow effect to key platforms for better visibility
+                        if (platforms[i].isKeyPlatform) {
+                            // Add a highlight border for key platforms only
+                            ctx.strokeStyle = '#FFFF99'; // Yellow highlight
+                            ctx.lineWidth = 2;
+                            ctx.strokeRect(platforms[i].x, platforms[i].y, platforms[i].width, platforms[i].height);
+                            
+                            // Add glow for key platforms
+                            ctx.shadowColor = 'rgba(255, 255, 100, 0.8)';
+                            ctx.shadowBlur = 12;
+                            ctx.fillRect(platforms[i].x, platforms[i].y, platforms[i].width, platforms[i].height);
+                            ctx.shadowBlur = 0;
+                        }
+                        
+                        // Draw platform text - all platforms have the same text style
+                        if (platforms[i].isKeyPlatform) {
+                            // Make key platform text slightly bolder
+                            ctx.fillStyle = 'white';
+                            ctx.font = 'bold 10px Arial';
+                        } else {
+                            ctx.fillStyle = 'white';
+                            ctx.font = '9px Arial';
+                        }
+                        ctx.textAlign = 'center';
+                        ctx.fillText(
+                            platforms[i].text, 
+                            platforms[i].x + platforms[i].width / 2, 
+                            platforms[i].y + platforms[i].height / 2 + 3
+                        );
+                    }
+                    
+                    // Draw coins
+                    for (let i = 0; i < coins.length; i++) {
+                        if (!coins[i].collected) {
+                            // Add a little bounce animation
+                            const bounce = Math.sin(Date.now() / 200) * 3;
+                            
+                            ctx.fillStyle = coins[i].color;
+                            ctx.beginPath();
+                            ctx.arc(coins[i].x + coins[i].width/2, 
+                                   coins[i].y + coins[i].height/2 + bounce, 
+                                   coins[i].width/2, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                    
+                    // Draw powerups
+                    for (let i = 0; i < powerups.length; i++) {
+                        if (!powerups[i].active) {
+                            ctx.fillStyle = powerups[i].color;
+                            
+                            if (powerups[i].type === "spring") {
+                                // Draw spring
+                                ctx.fillRect(powerups[i].x, powerups[i].y, 
+                                            powerups[i].width, powerups[i].height);
+                                // Spring coils
+                                ctx.strokeStyle = "#FFFFFF";
+                                ctx.lineWidth = 2;
+                                ctx.beginPath();
+                                for (let j = 1; j <= 3; j++) {
+                                    ctx.moveTo(powerups[i].x, powerups[i].y + j * 5);
+                                    ctx.lineTo(powerups[i].x + powerups[i].width, 
+                                              powerups[i].y + j * 5);
+                                }
+                                ctx.stroke();
+                            } else if (powerups[i].type === "jetpack") {
+                                // Draw jetpack
+                                ctx.fillRect(powerups[i].x, powerups[i].y, 
+                                            powerups[i].width, powerups[i].height);
+                                // Jetpack straps
+                                ctx.strokeStyle = "#FFFF00";
+                                ctx.lineWidth = 2;
+                                ctx.beginPath();
+                                ctx.moveTo(powerups[i].x + 5, powerups[i].y);
+                                ctx.lineTo(powerups[i].x + 5, powerups[i].y + 10);
+                                ctx.moveTo(powerups[i].x + 15, powerups[i].y);
+                                ctx.lineTo(powerups[i].x + 15, powerups[i].y + 10);
+                                ctx.stroke();
+                            }
+                        }
+                    }
+                    
+                    // Draw enemies
+                    for (let i = 0; i < enemies.length; i++) {
+                        ctx.fillStyle = enemies[i].color;
+                        ctx.fillRect(enemies[i].x, enemies[i].y, 
+                                    enemies[i].width, enemies[i].height);
+                        
+                        // Draw enemy eyes
+                        ctx.fillStyle = "white";
+                        ctx.beginPath();
+                        ctx.arc(enemies[i].x + 10, enemies[i].y + 7, 3, 0, Math.PI * 2);
+                        ctx.arc(enemies[i].x + enemies[i].width - 10, enemies[i].y + 7, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Draw enemy pupils
+                        ctx.fillStyle = "black";
+                        const pupilOffset = enemies[i].direction > 0 ? 1 : -1;
+                        ctx.beginPath();
+                        ctx.arc(enemies[i].x + 10 + pupilOffset, enemies[i].y + 7, 1.5, 0, Math.PI * 2);
+                        ctx.arc(enemies[i].x + enemies[i].width - 10 + pupilOffset, enemies[i].y + 7, 1.5, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    
+                    // Draw player
+                    drawPlayer();
+                    
+                    // Draw height indicator
+                    drawHeightIndicator();
+                } else {
+                    // Game over screen
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    ctx.fillStyle = 'white';
+                    ctx.font = '48px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2 - 70);
+                    
+                    ctx.font = '24px Arial';
+                    ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 - 20);
+                    ctx.fillText(`Max Height: ${maxHeight}`, canvas.width / 2, canvas.height / 2 + 20);
+                    
+                    ctx.font = '18px Arial';
+                    ctx.fillText('The positive thoughts supported you,', canvas.width / 2, canvas.height / 2 + 60);
+                    ctx.fillText('while the negative ones could not hold your weight.', canvas.width / 2, canvas.height / 2 + 85);
+                    
+                    ctx.font = '16px Arial';
+                    ctx.fillText('Refresh the page to play again', canvas.width / 2, canvas.height / 2 + 130);
+                }
+                
+                // Run the game loop again
+                requestAnimationFrame(gameLoop);
+            }
+            
+            // Draw coin collection effect
+            function createCoinEffect(x, y) {
+                // This could be expanded with particles or animations
+                // For now, just a simple flash effect
+                ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
+                ctx.beginPath();
+                ctx.arc(x + 7.5, y + 7.5, 20, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Draw jetpack flame
+            function drawJetpackFlame() {
+                // Only draw if player has jetpack
+                if (!player.hasJetpack) return;
+                
+                const flameHeight = 10 + Math.random() * 15;
+                
+                // Draw flame
+                const gradient = ctx.createLinearGradient(
+                    player.x + player.width / 2, 
+                    player.y + player.height,
+                    player.x + player.width / 2, 
+                    player.y + player.height + flameHeight
+                );
+                gradient.addColorStop(0, '#FFFF00');
+                gradient.addColorStop(0.5, '#FF9900');
+                gradient.addColorStop(1, '#FF0000');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.moveTo(player.x + player.width / 2 - 10, player.y + player.height);
+                ctx.lineTo(player.x + player.width / 2, player.y + player.height + flameHeight);
+                ctx.lineTo(player.x + player.width / 2 + 10, player.y + player.height);
+                ctx.closePath();
+                ctx.fill();
+            }
+            
+            // Draw height indicator
+            function drawHeightIndicator() {
+                const barHeight = 200;
+                const barWidth = 10;
+                const barX = canvas.width - 20;
+                const barY = canvas.height / 2 - barHeight / 2;
+                
+                // Draw background bar
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.fillRect(barX, barY, barWidth, barHeight);
+                
+                // Draw height progress
+                const progress = Math.min(currentHeight / 1000, 1); // Max height indicator at 1000
+                ctx.fillStyle = '#4CAF50';
+                ctx.fillRect(barX, barY + barHeight - (barHeight * progress), barWidth, barHeight * progress);
+                
+                // Draw player marker
+                ctx.fillStyle = '#FF5733';
+                ctx.beginPath();
+                ctx.moveTo(barX - 10, barY + barHeight - (barHeight * progress));
+                ctx.lineTo(barX, barY + barHeight - (barHeight * progress) + 5);
+                ctx.lineTo(barX, barY + barHeight - (barHeight * progress) - 5);
+                ctx.closePath();
+                ctx.fill();
+            }
+            
+            // Draw background elements with parallax effect
+            function drawBackground() {
+                // Sky gradient
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, '#73C2FB');  // Light blue at top
+                gradient.addColorStop(1, '#C9E9FF');  // Lighter blue at bottom
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw stars when player reaches a certain height
+                if (currentHeight > 300) {
+                    drawStars();
+                }
+                
+                // Parallax clouds
+                const cloudParallax = cameraPosY * 0.2;
+                drawCloud(100, (80 - cloudParallax * 0.1) % (canvas.height + 100) - 50, 60);
+                drawCloud(300, (180 - cloudParallax * 0.2) % (canvas.height + 100) - 50, 80);
+                drawCloud(150, (300 - cloudParallax * 0.15) % (canvas.height + 100) - 50, 70);
+                drawCloud(400, (450 - cloudParallax * 0.25) % (canvas.height + 100) - 50, 65);
+                
+                // Sun or moon based on height
+                if (currentHeight > 500) {
+                    // Moon at higher altitudes
+                    ctx.fillStyle = '#FFFAEA';
+                    ctx.beginPath();
+                    ctx.arc(canvas.width - 80, 80, 40, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Moon craters
+                    ctx.fillStyle = '#E1E1D6';
+                    ctx.beginPath();
+                    ctx.arc(canvas.width - 95, 65, 10, 0, Math.PI * 2);
+                    ctx.arc(canvas.width - 65, 90, 8, 0, Math.PI * 2);
+                    ctx.arc(canvas.width - 80, 70, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    // Sun at lower altitudes
+                    ctx.fillStyle = '#FFFF00';
+                    ctx.beginPath();
+                    ctx.arc(canvas.width - 80, 80, 40, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Sun rays
+                    ctx.strokeStyle = '#FFFF00';
+                    ctx.lineWidth = 3;
+                    for (let i = 0; i < 8; i++) {
+                        ctx.beginPath();
+                        const angle = i * Math.PI / 4;
+                        ctx.moveTo(
+                            canvas.width - 80 + Math.cos(angle) * 45,
+                            80 + Math.sin(angle) * 45
+                        );
+                        ctx.lineTo(
+                            canvas.width - 80 + Math.cos(angle) * 60,
+                            80 + Math.sin(angle) * 60
+                        );
+                        ctx.stroke();
+                    }
+                }
+                
+                // Draw distant mountains with parallax effect
+                const mountainParallax = cameraPosY * 0.05;
+                drawMountainRange(mountainParallax);
+            }
+            
+            // Draw stars
+            function drawStars() {
+                ctx.fillStyle = 'white';
+                // Use a seeded pattern based on height to keep stars consistent
+                const starSeed = Math.floor(currentHeight / 100);
+                
+                for (let i = 0; i < 100; i++) {
+                    // Create a predictable yet varied star pattern
+                    const x = ((starSeed * 23 + i * 97) % 100) / 100 * canvas.width;
+                    const y = ((starSeed * 17 + i * 43) % 100) / 100 * canvas.height;
+                    
+                    // Twinkle effect
+                    const twinkle = Math.sin(Date.now() / 1000 + i * 10) * 0.5 + 0.5;
+                    const size = 1 + twinkle;
+                    
+                    ctx.globalAlpha = 0.5 + twinkle * 0.5;
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.globalAlpha = 1.0;
+            }
+            
+            // Draw a cloud
+            function drawCloud(x, y, size) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.beginPath();
+                ctx.arc(x, y, size/2, 0, Math.PI * 2);
+                ctx.arc(x + size/2, y - size/4, size/3, 0, Math.PI * 2);
+                ctx.arc(x + size, y, size/2, 0, Math.PI * 2);
+                ctx.arc(x + size/2, y + size/4, size/3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Draw mountain range
+            function drawMountainRange(parallax) {
+                const baseHeight = canvas.height;
+                
+                // First mountain range (far)
+                ctx.fillStyle = '#9ba0a3';
+                drawMountain(0, baseHeight, 200, 150 - parallax * 0.2);
+                drawMountain(200, baseHeight, 300, 200 - parallax * 0.2);
+                drawMountain(500, baseHeight, 250, 180 - parallax * 0.2);
+                
+                // Second mountain range (closer)
+                ctx.fillStyle = '#7a8285';
+                drawMountain(-100, baseHeight, 300, 230 - parallax * 0.4);
+                drawMountain(200, baseHeight, 400, 260 - parallax * 0.4);
+                drawMountain(600, baseHeight, 300, 220 - parallax * 0.4);
+            }
+            
+            // Draw a single mountain
+            function drawMountain(x, baseY, width, height) {
+                ctx.beginPath();
+                ctx.moveTo(x, baseY);
+                ctx.lineTo(x + width / 2, baseY - height);
+                ctx.lineTo(x + width, baseY);
+                ctx.fill();
+                
+                // Add snow cap
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.beginPath();
+                ctx.moveTo(x + width * 0.3, baseY - height * 0.7);
+                ctx.lineTo(x + width / 2, baseY - height);
+                ctx.lineTo(x + width * 0.7, baseY - height * 0.7);
+                ctx.fill();
+            }
+            
+            // Draw player with simple animations
+            function drawPlayer() {
+                // Body
+                ctx.fillStyle = player.color;
+                ctx.fillRect(player.x, player.y, player.width, player.height);
+                
+                // Draw face based on direction and velocity
+                const eyeSize = 8;
+                const mouthWidth = 15;
+                const mouthHeight = 4;
+                
+                // Eyes
+                ctx.fillStyle = 'white';
+                if (player.facingRight) {
+                    ctx.fillRect(player.x + player.width - 20, player.y + 15, eyeSize, eyeSize);
+                    ctx.fillRect(player.x + player.width - 35, player.y + 15, eyeSize, eyeSize);
+                } else {
+                    ctx.fillRect(player.x + 12, player.y + 15, eyeSize, eyeSize);
+                    ctx.fillRect(player.x + 27, player.y + 15, eyeSize, eyeSize);
+                }
+                
+                // Pupils - move based on velocity
+                ctx.fillStyle = 'black';
+                const pupilOffset = player.velY < 0 ? -1 : (player.velY > 5 ? 1 : 0);
+                if (player.facingRight) {
+                    ctx.fillRect(player.x + player.width - 18, player.y + 17 + pupilOffset, 4, 4);
+                    ctx.fillRect(player.x + player.width - 33, player.y + 17 + pupilOffset, 4, 4);
+                } else {
+                    ctx.fillRect(player.x + 14, player.y + 17 + pupilOffset, 4, 4);
+                    ctx.fillRect(player.x + 29, player.y + 17 + pupilOffset, 4, 4);
+                }
+                
+                // Mouth - expression changes based on vertical velocity
+                ctx.fillStyle = 'black';
+                if (player.velY < -5) {
+                    // Happy/excited mouth when moving upward fast
+                    ctx.beginPath();
+                    if (player.facingRight) {
+                        ctx.arc(player.x + player.width - 25, player.y + 35, 8, 0, Math.PI);
+                    } else {
+                        ctx.arc(player.x + 20, player.y + 35, 8, 0, Math.PI);
+                    }
+                    ctx.fill();
+                } else if (player.velY > 10) {
+                    // Worried mouth when falling fast
+                    ctx.beginPath();
+                    if (player.facingRight) {
+                        ctx.arc(player.x + player.width - 25, player.y + 40, 8, Math.PI, Math.PI * 2);
+                    } else {
+                        ctx.arc(player.x + 20, player.y + 40, 8, Math.PI, Math.PI * 2);
+                    }
+                    ctx.fill();
+                } else {
+                    // Normal mouth
+                    if (player.facingRight) {
+                        ctx.fillRect(player.x + player.width - 35, player.y + 35, mouthWidth, mouthHeight);
+                    } else {
+                        ctx.fillRect(player.x + 15, player.y + 35, mouthWidth, mouthHeight);
+                    }
+                }
+                
+                // Arms and legs
+                ctx.fillStyle = '#DB7093';
+                
+                // Arms with animation
+                const armSwing = Math.sin(Date.now() / 100) * 5;
+                if (player.facingRight) {
+                    ctx.fillRect(player.x - 5, player.y + 15 + armSwing, 5, 15);
+                    ctx.fillRect(player.x + player.width, player.y + 15 - armSwing, 5, 15);
+                } else {
+                    ctx.fillRect(player.x - 5, player.y + 15 - armSwing, 5, 15);
+                    ctx.fillRect(player.x + player.width, player.y + 15 + armSwing, 5, 15);
+                }
+                
+                // Legs with animation when jumping
+                const legSquish = player.velY < 0 ? -5 : (player.onPlatform ? 5 : 0);
+                ctx.fillRect(player.x + 10, player.y + player.height, 10, 5 + legSquish);
+                ctx.fillRect(player.x + player.width - 20, player.y + player.height, 10, 5 + legSquish);
+            }
+            
+            // Initialize the game
+            initPlatforms();
+            
+            // Start the game loop
+            gameLoop();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mental Clarity Matching Game</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        body {
+            background-color: #f0f8ff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #4a6fa5;
+        }
+        
+        h1 {
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 15px;
+        }
+        
+        .level-info, .score-info {
+            background-color: #d1e5f7;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            color: #2c4a6e;
+        }
+        
+        .character-container {
+            background-color: #e1f0ff;
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .character-face {
+            font-size: 60px;
+            margin-bottom: 10px;
+            transition: all 0.5s ease;
+        }
+        
+        .character-message {
+            font-size: 16px;
+            color: #4a6fa5;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        
+        .game-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 0 auto;
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        .card {
+            aspect-ratio: 1/1;
+            background-color: #5c93d1;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            text-align: center;
+            cursor: pointer;
+            padding: 10px;
+            perspective: 1000px;
+            transition: transform 0.3s;
+            transform-style: preserve-3d;
+            position: relative;
+        }
+        
+        .card:hover {
+            transform: scale(1.05);
+        }
+        
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+        
+        .card.matched {
+            background-color: #7fc8a9;
+            cursor: default;
+        }
+        
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            padding: 5px;
+        }
+        
+        .card-front {
+            background-color: #5c93d1;
+        }
+        
+        .card-back {
+            background-color: white;
+            transform: rotateY(180deg);
+            color: #2c4a6e;
+            font-weight: bold;
+        }
+        
+        .positive {
+            background-color: #7fc8a9;
+        }
+        
+        .negative {
+            background-color: #e88b8b;
+        }
+        
+        .level-complete {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+        
+        .level-complete.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .level-message {
+            background-color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 80%;
+        }
+        
+        .level-message h2 {
+            margin-bottom: 20px;
+            color: #4a6fa5;
+        }
+        
+        .level-message p {
+            margin-bottom: 20px;
+            color: #2c4a6e;
+        }
+        
+        .next-level-btn {
+            background-color: #7fc8a9;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        
+        .next-level-btn:hover {
+            background-color: #6ab897;
+        }
+
+        .game-complete {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+        
+        .game-complete.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .game-complete-message {
+            background-color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 80%;
+        }
+        
+        .game-complete-message h2 {
+            margin-bottom: 20px;
+            color: #4a6fa5;
+        }
+        
+        .game-complete-message p {
+            margin-bottom: 20px;
+            color: #2c4a6e;
+        }
+        
+        .restart-game-btn {
+            background-color: #7fc8a9;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        
+        .restart-game-btn:hover {
+            background-color: #6ab897;
+        }
+
+        .instructions {
+            background-color: #e1f0ff;
+            padding: 15px;
+            border-radius: 15px;
+            margin-top: 20px;
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .instructions p {
+            color: #4a6fa5;
+            margin-bottom: 10px;
+        }
+
+        .control-buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+        }
+
+        .control-btn {
+            background-color: #5c93d1;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .control-btn:hover {
+            background-color: #4a6fa5;
+        }
+
+        @media screen and (max-width: 600px) {
+            .game-container {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+            .card {
+                font-size: 12px;
+            }
+            .character-face {
+                font-size: 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Mental Clarity Matching Game</h1>
+        <p>Match positive thoughts with negative ones to clear your mind</p>
+    </header>
+    
+    <div class="game-info">
+        <div class="level-info">Level: <span id="current-level">1</span></div>
+        <div class="score-info">Matches: <span id="current-score">0</span>/<span id="total-pairs">4</span></div>
+    </div>
+    
+    <div class="character-container">
+        <div class="character-face">😐</div>
+        <div class="character-message">I'm feeling a bit clouded with negative thoughts...</div>
+    </div>
+    
+    <div class="game-container" id="game-grid"></div>
+    
+    <div class="instructions">
+        <p>Click on the cards to flip them and make matches between negative thoughts and their positive counterparts.</p>
+        <p>Clear all negative thoughts to complete the level and help the character feel better!</p>
+        <div class="control-buttons">
+            <button class="control-btn" id="mute-btn">🔊 Sound On</button>
+            <button class="control-btn" id="restart-btn">🔄 Restart Level</button>
+        </div>
+    </div>
+    
+    <div class="level-complete" id="level-complete-modal">
+        <div class="level-message">
+            <h2>Level Complete!</h2>
+            <p id="level-complete-text">You've cleared all negative thoughts on this level!</p>
+            <button class="next-level-btn" id="next-level-btn">Next Level</button>
+        </div>
+    </div>
+    
+    <div class="game-complete" id="game-complete-modal">
+        <div class="game-complete-message">
+            <h2>Congratulations!</h2>
+            <p>You've completed all levels and fully restored mental clarity!</p>
+            <p>The character is now feeling wonderful thanks to your help.</p>
+            <button class="restart-game-btn" id="restart-game-btn">Play Again</button>
+        </div>
+    </div>
+    
+    <script>
+        // Game state
+        const gameState = {
+            level: 1,
+            maxLevel: 5,
+            score: 0,
+            totalPairs: 4,
+            flippedCards: [],
+            matchedPairs: 0,
+            canFlip: true,
+            isMuted: false
+        };
+        
+        // Audio elements
+        const matchSound = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAASAAAJwwBHR0dHR0dHR0dHcHBwcHBwcHBwcJqampqampqampqawsLCwsLCwsLCwt/f39/f39/f39//////////////////////////////////////////AAAAAExhdmM1OC4xMwAAAAAAAAAAAAAAACQCQAAAAAAAAAkDnAE1gQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sUZAAP8AAAF0AAAAAIAAAIAAAEAABAB+AAAiAAAD8AAAAEM//zQAAHwAEQbAAABYQDgAAAAA');
+        const levelUpSound = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAAYAAAQqAA2NjY2NjY2NjY2UFBQUFBQUFBQUGpqampqampqamqEhISEhISEhISEnp6enp6enp6enrm5ubm5ubm5ubnT09PT09PT09PT7u7u7u7u7u7u7v//////////////////////////////////////////AAAAAExhdmM1OC4xMwAAAAAAAAAAAAAAACQCwAAAAAAAAAigT8/hHQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sUZAAP8AAAF0AAAAAIAAAIAAAEAABAB+AAAiAAAD8AAAAEZP/+wAAHwAEQbAAABwAQDgAAAAA=');
+        const flipSound = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAADAAAGhwB5eXl5eXmhoaGhoaGq4uLi4uLiAAAAAAAAAAAAAAAAAAAAAExhdmM1OC4xMwAAAAAAAAAAAAAAACQCQAAAAAAAAAbHNB6eaQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/7UEUAD/AAAB+AAAAIAAAI4AAABASQH4AAAAAABOAAAYAJMn/zAAAHwAEQbAAAAaJiLMvB1H1jDwdR9Yzx1deMRnCJdeMRnCIO7PfGGEQd2e+MMIg7s98YYfgAAAAAAAAAA');
+        const gameCompleteSound = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAAbAAAOGABaWlpaWlpaWlpaWnV1dXV1dXV1dXWQkJCQkJCQkJCQrKysrKysrKysrMfHx8fHx8fHx8fj4+Pj4+Pj4+Pj//////////////////////////8AAAAATGFm//sUZAAP8AAAF0AAAAAIAAAIAAAEAABAB+AAAiAAAD8AAAAE//zQAAHwAEQbAAAFwAQDgAAAAA=');
+        
+        // Thought pairs for each level
+        const gameLevels = [
+            // Level 1: 4 pairs
+            [
+                { negative: "I'm not good enough", positive: "I am enough just as I am" },
+                { negative: "I always fail", positive: "I learn from every experience" },
+                { negative: "Nobody likes me", positive: "I am worthy of love and friendship" },
+                { negative: "I can't do this", positive: "I can handle challenges with patience" }
+            ],
+            // Level 2: 5 pairs
+            [
+                { negative: "I'm too anxious", positive: "I can find peace within myself" },
+                { negative: "I'm always stressed", positive: "I can choose to relax and breathe" },
+                { negative: "I make too many mistakes", positive: "Mistakes help me grow and learn" },
+                { negative: "My feelings don't matter", positive: "My feelings are valid and important" },
+                { negative: "I'm stuck in life", positive: "New opportunities await me" }
+            ],
+            // Level 3: 6 pairs
+            [
+                { negative: "I'll never be happy", positive: "I create my own happiness" },
+                { negative: "I'm a disappointment", positive: "I am proud of my journey" },
+                { negative: "No one understands me", positive: "I can express myself clearly" },
+                { negative: "I'm powerless", positive: "I have strength within me" },
+                { negative: "I'm always left out", positive: "I belong and am valued" },
+                { negative: "I'm overwhelmed", positive: "I can take one step at a time" }
+            ],
+            // Level 4: 7 pairs
+            [
+                { negative: "I can't control anything", positive: "I can control my responses" },
+                { negative: "I'm not creative", positive: "My creativity flows in unique ways" },
+                { negative: "I'll never reach my goals", positive: "Each day brings me closer to success" },
+                { negative: "I'm too different", positive: "My uniqueness is my strength" },
+                { negative: "I don't deserve good things", positive: "I am worthy of good in my life" },
+                { negative: "I'll always be alone", positive: "I attract meaningful connections" },
+                { negative: "I'm trapped", positive: "I can choose a new path anytime" }
+            ],
+            // Level 5: 8 pairs
+            [
+                { negative: "My past defines me", positive: "I create my future with each choice" },
+                { negative: "I have nothing to offer", positive: "I have unique gifts to share" },
+                { negative: "I'm too sensitive", positive: "My sensitivity is a form of strength" },
+                { negative: "I'm not smart enough", positive: "My mind is capable of growth" },
+                { negative: "I can't handle change", positive: "I adapt and flow with life's changes" },
+                { negative: "I don't fit in anywhere", positive: "I find my place in the world" },
+                { negative: "I'm a burden to others", positive: "My presence enriches others' lives" },
+                { negative: "I'll never feel peaceful", positive: "Peace lives within me right now" }
+            ]
+        ];
+        
+        // Character mood messages
+        const characterMoods = [
+            "I'm feeling a bit clouded with negative thoughts...",
+            "I'm starting to feel a bit lighter...",
+            "Some clarity is coming through!",
+            "I'm feeling much more balanced now!",
+            "My mind feels so much clearer!",
+            "I feel peaceful and positive!" 
+        ];
+        
+        // Character faces for different moods
+        const characterFaces = ["😐", "🙂", "😊", "😄", "😁", "🥰"];
+        
+        // DOM Elements
+        const gameGrid = document.getElementById('game-grid');
+        const levelDisplay = document.getElementById('current-level');
+        const scoreDisplay = document.getElementById('current-score');
+        const totalPairsDisplay = document.getElementById('total-pairs');
+        const characterFace = document.querySelector('.character-face');
+        const characterMessage = document.querySelector('.character-message');
+        const levelCompleteModal = document.getElementById('level-complete-modal');
+        const nextLevelBtn = document.getElementById('next-level-btn');
+        const gameCompleteModal = document.getElementById('game-complete-modal');
+        const restartGameBtn = document.getElementById('restart-game-btn');
+        const muteBtn = document.getElementById('mute-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        
+        // Event Listeners
+        nextLevelBtn.addEventListener('click', startNextLevel);
+        restartGameBtn.addEventListener('click', restartGame);
+        muteBtn.addEventListener('click', toggleMute);
+        restartBtn.addEventListener('click', restartLevel);
+        
+        // Initialize game
+        initGame();
+        
+        function initGame() {
+            updateUI();
+            createCards();
+        }
+        
+        function createCards() {
+            // Clear previous cards
+            gameGrid.innerHTML = '';
+            
+            const currentLevelData = gameLevels[gameState.level - 1];
+            gameState.totalPairs = currentLevelData.length;
+            gameState.score = 0;
+            gameState.matchedPairs = 0;
+            gameState.flippedCards = [];
+            
+            // Create array with negative and positive thoughts
+            let cards = [];
+            currentLevelData.forEach((pair, index) => {
+                cards.push({
+                    id: `n${index}`,
+                    type: 'negative',
+                    content: pair.negative,
+                    pairId: index
+                });
+                cards.push({
+                    id: `p${index}`,
+                    type: 'positive',
+                    content: pair.positive,
+                    pairId: index
+                });
+            });
+            
+            // Shuffle cards
+            cards = shuffleArray(cards);
+            
+            // Create card elements
+            cards.forEach(card => {
+                const cardElement = document.createElement('div');
+                cardElement.classList.add('card');
+                cardElement.dataset.id = card.id;
+                cardElement.dataset.pairId = card.pairId;
+                cardElement.dataset.type = card.type;
+                
+                const cardFront = document.createElement('div');
+                cardFront.classList.add('card-front');
+                cardFront.innerHTML = '?';
+                
+                const cardBack = document.createElement('div');
+                cardBack.classList.add('card-back');
+                cardBack.classList.add(card.type);
+                cardBack.textContent = card.content;
+                
+                cardElement.appendChild(cardFront);
+                cardElement.appendChild(cardBack);
+                
+                cardElement.addEventListener('click', () => flipCard(cardElement));
+                
+                gameGrid.appendChild(cardElement);
+            });
+            
+            // Adjust grid columns based on card count
+            const totalCards = cards.length;
+            let columns;
+            if (totalCards <= 8) columns = 4;
+            else if (totalCards <= 12) columns = 4;
+            else columns = 4;
+            
+            gameGrid.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+            
+            updateUI();
+        }
+        
+        function flipCard(card) {
+            // Check if card can be flipped
+            if (
+                !gameState.canFlip || 
+                card.classList.contains('flipped') || 
+                card.classList.contains('matched') ||
+                gameState.flippedCards.length >= 2
+            ) {
+                return;
+            }
+            
+            // Play flip sound
+            if (!gameState.isMuted) {
+                flipSound.currentTime = 0;
+                flipSound.play();
+            }
+            
+            // Flip the card
+            card.classList.add('flipped');
+            gameState.flippedCards.push(card);
+            
+            // Check for match if two cards are flipped
+            if (gameState.flippedCards.length === 2) {
+                gameState.canFlip = false;
+                checkForMatch();
+            }
+        }
+        
+        function checkForMatch() {
+            const card1 = gameState.flippedCards[0];
+            const card2 = gameState.flippedCards[1];
+            
+            const isPair = card1.dataset.pairId === card2.dataset.pairId;
+            const isComplementary = card1.dataset.type !== card2.dataset.type;
+            
+            if (isPair && isComplementary) {
+                // Match found
+                setTimeout(() => {
+                    if (!gameState.isMuted) {
+                        matchSound.currentTime = 0;
+                        matchSound.play();
+                    }
+                    
+                    card1.classList.add('matched');
+                    card2.classList.add('matched');
+                    
+                    gameState.score++;
+                    gameState.matchedPairs++;
+                    
+                    // Update character mood
+                    updateCharacterMood();
+                    
+                    // Clear flipped cards array
+                    gameState.flippedCards = [];
+                    gameState.canFlip = true;
+                    
+                    updateUI();
+                    
+                    // Check if level is complete
+                    if (gameState.matchedPairs === gameState.totalPairs) {
+                        setTimeout(showLevelComplete, 1000);
+                    }
+                }, 500);
+            } else {
+                // No match
+                setTimeout(() => {
+                    card1.classList.remove('flipped');
+                    card2.classList.remove('flipped');
+                    
+                    // Clear flipped cards array
+                    gameState.flippedCards = [];
+                    gameState.canFlip = true;
+                }, 1000);
+            }
+        }
+        
+        function updateCharacterMood() {
+            // Calculate mood index based on progress (0-5)
+            const totalPairs = gameLevels[gameState.level - 1].length;
+            const moodIndex = Math.min(
+                Math.floor((gameState.matchedPairs / totalPairs) * 5),
+                5
+            );
+            
+            characterFace.textContent = characterFaces[moodIndex];
+            characterMessage.textContent = characterMoods[moodIndex];
+        }
+        
+        function showLevelComplete() {
+            if (!gameState.isMuted) {
+                levelUpSound.currentTime = 0;
+                levelUpSound.play();
+            }
+            
+            if (gameState.level === gameState.maxLevel) {
+                // Game complete!
+                setTimeout(() => {
+                    if (!gameState.isMuted) {
+                        gameCompleteSound.currentTime = 0;
+                        gameCompleteSound.play();
+                    }
+                    gameCompleteModal.classList.add('visible');
+                }, 500);
+            } else {
+                levelCompleteModal.classList.add('visible');
+            }
+        }
+        
+        function startNextLevel() {
+            levelCompleteModal.classList.remove('visible');
+            gameState.level++;
+            createCards();
+        }
+        
+        function restartGame() {
+            gameCompleteModal.classList.remove('visible');
+            gameState.level = 1;
+            createCards();
+        }
+        
+        function restartLevel() {
+            createCards();
+        }
+        
+        function toggleMute() {
+            gameState.isMuted = !gameState.isMuted;
+            muteBtn.textContent = gameState.isMuted ? '🔇 Sound Off' : '🔊 Sound On';
+        }
+        
+        function updateUI() {
+            levelDisplay.textContent = gameState.level;
+            scoreDisplay.textContent = gameState.score;
+            totalPairsDisplay.textContent = gameState.totalPairs;
+        }
+        
+        // Utility function to shuffle an array
+        function shuffleArray(array) {
+            const newArray = [...array];
+            for (let i = newArray.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            }
+            return newArray;
+        }
+    </script>
+</body>
+</html>
