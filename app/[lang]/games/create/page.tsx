@@ -1,23 +1,26 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import axios from 'axios';
+import { Language } from '../../../config/languages';
 
 interface Model {
   id: string;
   name: string;
 }
 
-export default function CreateGamePage({ params }: { params: { lang: string } }) {
+export default function CreateGamePage() {
   const router = useRouter();
+  const params = useParams();
+  const lang = params.lang as string;
+  
   const [userInput, setUserInput] = useState('');
   const [models, setModels] = useState<Model[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [resultUrl, setResultUrl] = useState('');
-  const { lang } = params;
 
   const examples = [
     'Anxiety about job loss',
