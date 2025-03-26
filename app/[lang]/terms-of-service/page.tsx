@@ -1,8 +1,7 @@
 import { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { Language, isValidLanguage } from '../../config/languages';
-import Hero from '../../components/Hero';
-import SectionTitle from '../../components/SectionTitle';
+import { getTranslation, TranslationKey } from '../../utils/translations';
 
 interface TermsOfServicePageProps {
   params: {
@@ -12,116 +11,129 @@ interface TermsOfServicePageProps {
 
 export async function generateMetadata({ params }: TermsOfServicePageProps): Promise<Metadata> {
   // Validate language
-  if (!isValidLanguage(params.lang)) {
+  const lang = await params.lang;
+  if (!isValidLanguage(lang)) {
     return {};
   }
   
-  const lang = params.lang as Language;
+  // Set metadata based on language
+  const title = lang === 'en' ? 'Terms of Service' : 'Nutzungsbedingungen';
+  const description = lang === 'en' 
+    ? 'Terms of Service for PsyGamingLab'
+    : 'Nutzungsbedingungen für PsyGamingLab';
   
   return {
-    title: lang === 'en' ? 'Terms of Service | PsyGamingLab' : 'Nutzungsbedingungen | PsyGamingLab',
-    description: lang === 'en' 
-      ? 'Terms of Service for PsyGamingLab. Learn about the terms and conditions that govern your use of our services.'
-      : 'Nutzungsbedingungen für PsyGamingLab. Erfahren Sie mehr über die Bedingungen, die Ihre Nutzung unserer Dienste regeln.',
+    title,
+    description,
   };
 }
 
-export default function TermsOfServicePage({ params }: TermsOfServicePageProps) {
+export default async function TermsOfServicePage({ params }: TermsOfServicePageProps) {
   // Validate language parameter
-  if (!isValidLanguage(params.lang)) {
-    notFound();
+  const lang = await params.lang;
+  if (!isValidLanguage(lang)) {
+    return null;
   }
   
-  const lang = params.lang as Language;
-  
-  // Hero content based on language
-  const heroTitle = lang === 'en' 
-    ? 'Terms of Service'
-    : 'Nutzungsbedingungen';
-  
-  const heroSubtitle = lang === 'en'
-    ? 'Please read these terms carefully before using our services.'
-    : 'Bitte lesen Sie diese Bedingungen sorgfältig durch, bevor Sie unsere Dienste nutzen.';
+  const langCode = lang as Language;
+  const t = (key: TranslationKey) => getTranslation(key, langCode);
   
   return (
-    <>
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900">
       {/* Hero Section */}
-      <Hero
-        lang={lang}
-        title={heroTitle}
-        subtitle={heroSubtitle}
-        imageSrc="/images/gaming_chair_and_environment.jpg"
-        imageAlt="Terms of Service"
-        overlayColor="bg-gradient-to-r from-secondary-900/80 to-secondary-800/60"
-        size="small"
-      />
-      
-      {/* Terms of Service Content */}
-      <section className="section bg-white dark:bg-neutral-900">
+      <section className="bg-primary-900 text-white py-16">
+        <div className="container-custom">
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
+            {langCode === 'en' ? 'Terms of Service' : 'Nutzungsbedingungen'}
+          </h1>
+          <p className="text-lg md:text-xl max-w-3xl">
+            {langCode === 'en' 
+              ? 'Please read these terms carefully before using our platform.'
+              : 'Bitte lesen Sie diese Bedingungen sorgfältig durch, bevor Sie unsere Plattform nutzen.'}
+          </p>
+        </div>
+      </section>
+
+      {/* Content Section */}
+      <section className="py-12">
         <div className="container-custom max-w-4xl">
-          <SectionTitle
-            title={heroTitle}
-            subtitle={heroSubtitle}
-          />
-          
-          <div className="prose prose-lg dark:prose-invert max-w-none">
-            <p>Last updated: March 7, 2025</p>
-            
-            <h2>Agreement to Terms</h2>
-            <p>
-              These Terms of Service constitute a legally binding agreement made between you, whether personally or on behalf of an entity (&quot;you&quot;) and PsyGamingLab (&quot;we,&quot; &quot;us&quot; or &quot;our&quot;), concerning your access to and use of the PsyGamingLab website as well as any other media form, media channel, mobile website or mobile application related, linked, or otherwise connected thereto (collectively, the &quot;Site&quot;).
-            </p>
-            <p>
-              You agree that by accessing the Site, you have read, understood, and agree to be bound by all of these Terms of Service. If you do not agree with all of these Terms of Service, then you are expressly prohibited from using the Site and you must discontinue use immediately.
-            </p>
-            
-            <h2>Intellectual Property Rights</h2>
-            <p>
-              Unless otherwise indicated, the Site is our proprietary property and all source code, databases, functionality, software, website designs, audio, video, text, photographs, and graphics on the Site (collectively, the &quot;Content&quot;) and the trademarks, service marks, and logos contained therein (the &quot;Marks&quot;) are owned or controlled by us or licensed to us, and are protected by copyright and trademark laws and various other intellectual property rights and unfair competition laws.
-            </p>
-            
-            <h2>User Representations</h2>
-            <p>
-              By using the Site, you represent and warrant that:
-            </p>
-            <ol>
-              <li>All registration information you submit will be true, accurate, current, and complete;</li>
-              <li>You will maintain the accuracy of such information and promptly update such registration information as necessary;</li>
-              <li>You have the legal capacity and you agree to comply with these Terms of Service;</li>
-              <li>You are not a minor in the jurisdiction in which you reside;</li>
-              <li>You will not access the Site through automated or non-human means, whether through a bot, script, or otherwise;</li>
-              <li>You will not use the Site for any illegal or unauthorized purpose;</li>
-              <li>Your use of the Site will not violate any applicable law or regulation.</li>
-            </ol>
-            
-            <h2>Disclaimer</h2>
-            <p>
-              THE SITE IS PROVIDED ON AN AS-IS AND AS-AVAILABLE BASIS. YOU AGREE THAT YOUR USE OF THE SITE AND OUR SERVICES WILL BE AT YOUR SOLE RISK. TO THE FULLEST EXTENT PERMITTED BY LAW, WE DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED, IN CONNECTION WITH THE SITE AND YOUR USE THEREOF, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
-            </p>
-            
-            <h2>Limitations of Liability</h2>
-            <p>
-              IN NO EVENT WILL WE OR OUR DIRECTORS, EMPLOYEES, OR AGENTS BE LIABLE TO YOU OR ANY THIRD PARTY FOR ANY DIRECT, INDIRECT, CONSEQUENTIAL, EXEMPLARY, INCIDENTAL, SPECIAL, OR PUNITIVE DAMAGES, INCLUDING LOST PROFIT, LOST REVENUE, LOSS OF DATA, OR OTHER DAMAGES ARISING FROM YOUR USE OF THE SITE, EVEN IF WE HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
-            </p>
-            
-            <h2>Indemnification</h2>
-            <p>
-              You agree to defend, indemnify, and hold us harmless, including our subsidiaries, affiliates, and all of our respective officers, agents, partners, and employees, from and against any loss, damage, liability, claim, or demand, including reasonable attorneys&apos; fees and expenses, made by any third party due to or arising out of: (1) your Contributions; (2) use of the Site; (3) breach of these Terms of Service; (4) any breach of your representations and warranties set forth in these Terms of Service; (5) your violation of the rights of a third party, including but not limited to intellectual property rights; or (6) any overt harmful act toward any other user of the Site with whom you connected via the Site.
-            </p>
-            
-            <h2>Contact Us</h2>
-            <p>
-              If you have questions or comments about these Terms of Service, please contact us at:
-            </p>
-            <p>
-              PsyGamingLab<br />
-              Leipzig, Germany<br />
-              Email: felixwulf7@gmail.com
-            </p>
+          <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-lg p-8">
+            <div className="prose dark:prose-invert max-w-none">
+              <h2>{langCode === 'en' ? 'Terms of Use' : 'Nutzungsbedingungen'}</h2>
+              <p>
+                {langCode === 'en'
+                  ? 'These Terms of Service ("Terms") govern your access to and use of PsyGamingLab\'s website, services, and applications (collectively, the "Services"). By accessing or using our Services, you agree to be bound by these Terms.'
+                  : 'Diese Nutzungsbedingungen ("Bedingungen") regeln Ihren Zugang zu und die Nutzung der Website, Dienste und Anwendungen von PsyGamingLab (zusammen die "Dienste"). Durch den Zugriff auf oder die Nutzung unserer Dienste erklären Sie sich mit diesen Bedingungen einverstanden.'}
+              </p>
+              
+              <h3>{langCode === 'en' ? '1. Acceptance of Terms' : '1. Annahme der Bedingungen'}</h3>
+              <p>
+                {langCode === 'en'
+                  ? 'By accessing or using our Services, you agree to be bound by these Terms. If you do not agree to these Terms, you may not access or use the Services.'
+                  : 'Durch den Zugriff auf oder die Nutzung unserer Dienste erklären Sie sich mit diesen Bedingungen einverstanden. Wenn Sie diesen Bedingungen nicht zustimmen, dürfen Sie nicht auf die Dienste zugreifen oder diese nutzen.'}
+              </p>
+              
+              <h3>{langCode === 'en' ? '2. Changes to Terms' : '2. Änderungen der Bedingungen'}</h3>
+              <p>
+                {langCode === 'en'
+                  ? 'We may modify the Terms at any time, at our sole discretion. If we do so, we\'ll let you know either by posting the modified Terms on the Site or through other communications. It\'s important that you review the Terms whenever we modify them because if you continue to use the Services after we have posted modified Terms on the Site, you are indicating to us that you agree to be bound by the modified Terms.'
+                  : 'Wir können die Bedingungen jederzeit nach eigenem Ermessen ändern. Wenn wir dies tun, werden wir Sie entweder durch Veröffentlichung der geänderten Bedingungen auf der Website oder durch andere Mitteilungen informieren. Es ist wichtig, dass Sie die Bedingungen überprüfen, wenn wir sie ändern, denn wenn Sie die Dienste weiterhin nutzen, nachdem wir geänderte Bedingungen auf der Website veröffentlicht haben, zeigen Sie uns damit an, dass Sie sich mit den geänderten Bedingungen einverstanden erklären.'}
+              </p>
+              
+              <h3>{langCode === 'en' ? '3. Privacy Policy' : '3. Datenschutzrichtlinie'}</h3>
+              <p>
+                {langCode === 'en'
+                  ? 'Please refer to our Privacy Policy for information on how we collect, use and disclose information from our users. You acknowledge and agree that your use of the Services is subject to our Privacy Policy.'
+                  : 'Bitte beachten Sie unsere Datenschutzrichtlinie für Informationen darüber, wie wir Informationen von unseren Nutzern sammeln, verwenden und offenlegen. Sie bestätigen und stimmen zu, dass Ihre Nutzung der Dienste unserer Datenschutzrichtlinie unterliegt.'}
+              </p>
+              
+              <h3>{langCode === 'en' ? '4. Disclaimer' : '4. Haftungsausschluss'}</h3>
+              <p>
+                {langCode === 'en'
+                  ? 'The Services are provided for educational and self-help purposes only and are not intended to replace professional mental health care. We do not provide medical advice, diagnosis, or treatment. If you\'re experiencing a mental health crisis, please contact a qualified healthcare provider or emergency services immediately.'
+                  : 'Die Dienste werden nur zu Bildungs- und Selbsthilfezwecken bereitgestellt und sollen professionelle psychische Gesundheitsversorgung nicht ersetzen. Wir bieten keine medizinische Beratung, Diagnose oder Behandlung an. Wenn Sie eine psychische Gesundheitskrise erleben, wenden Sie sich bitte sofort an einen qualifizierten Gesundheitsdienstleister oder Notdienst.'}
+              </p>
+              
+              <h3>{langCode === 'en' ? '5. User Content' : '5. Benutzerinhalte'}</h3>
+              <p>
+                {langCode === 'en'
+                  ? 'Our Services may allow you to create, upload, or share content. You retain all rights in, and are solely responsible for, the content you post to the Services. By making any content available through the Services, you grant us a non-exclusive, transferable, sublicensable, worldwide, royalty-free license to use, copy, modify, and display the content in connection with operating and providing the Services.'
+                  : 'Unsere Dienste können es Ihnen ermöglichen, Inhalte zu erstellen, hochzuladen oder zu teilen. Sie behalten alle Rechte an den Inhalten, die Sie in den Diensten veröffentlichen, und sind allein dafür verantwortlich. Indem Sie Inhalte über die Dienste zur Verfügung stellen, gewähren Sie uns eine nicht-exklusive, übertragbare, unterlizenzierbare, weltweite, gebührenfreie Lizenz zur Nutzung, Kopie, Änderung und Anzeige der Inhalte im Zusammenhang mit dem Betrieb und der Bereitstellung der Dienste.'}
+              </p>
+              
+              <h3>{langCode === 'en' ? '6. Termination' : '6. Kündigung'}</h3>
+              <p>
+                {langCode === 'en'
+                  ? 'We may terminate or suspend your access to all or part of the Services, without notice, for any conduct that we, in our sole discretion, believe is in violation of any applicable law or is harmful to the interests of another user, a third-party, or us.'
+                  : 'Wir können Ihren Zugang zu allen oder einem Teil der Dienste ohne Vorankündigung für jedes Verhalten kündigen oder aussetzen, das nach unserem alleinigen Ermessen gegen geltendes Recht verstößt oder den Interessen eines anderen Nutzers, eines Dritten oder uns schadet.'}
+              </p>
+              
+              <h3>{langCode === 'en' ? '7. Contact Information' : '7. Kontaktinformationen'}</h3>
+              <p>
+                {langCode === 'en'
+                  ? 'If you have any questions about these Terms, please contact us at: support@psygaminglab.com'
+                  : 'Wenn Sie Fragen zu diesen Bedingungen haben, kontaktieren Sie uns bitte unter: support@psygaminglab.com'}
+              </p>
+              
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-8">
+                {langCode === 'en'
+                  ? 'Last updated: March 2024'
+                  : 'Zuletzt aktualisiert: März 2024'}
+              </p>
+            </div>
           </div>
         </div>
       </section>
-    </>
+      
+      {/* Back to Home */}
+      <section className="py-8 bg-neutral-100 dark:bg-neutral-800">
+        <div className="container-custom text-center">
+          <Link href={`/${langCode}`} className="btn-outline">
+            {langCode === 'en' ? 'Back to Home' : 'Zurück zur Startseite'}
+          </Link>
+        </div>
+      </section>
+    </div>
   );
 }
 

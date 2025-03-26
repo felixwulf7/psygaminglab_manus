@@ -14,27 +14,27 @@ interface LanguageLayoutProps {
 
 export async function generateMetadata({ params }: LanguageLayoutProps): Promise<Metadata> {
   // Validate language
-  if (!isValidLanguage(params.lang)) {
+  const lang = await params.lang;
+  if (!isValidLanguage(lang)) {
     return {};
   }
   
   // Generate metadata for the language
-  return generateHomeMetadata(params.lang as Language);
+  return generateHomeMetadata(lang as Language);
 }
 
-export default function LanguageLayout({ children, params }: LanguageLayoutProps) {
+export default async function LanguageLayout({ children, params }: LanguageLayoutProps) {
   // Validate language parameter
-  if (!isValidLanguage(params.lang)) {
+  const lang = await params.lang;
+  if (!isValidLanguage(lang)) {
     notFound();
   }
   
-  const lang = params.lang as Language;
-  
   return (
     <div className="flex flex-col min-h-screen">
-      <Header lang={lang} />
+      <Header lang={lang as Language} />
       <main className="flex-grow">{children}</main>
-      <Footer lang={lang} />
+      <Footer lang={lang as Language} />
     </div>
   );
 }

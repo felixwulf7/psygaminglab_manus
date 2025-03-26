@@ -1,203 +1,279 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import axios from 'axios';
-import { Language } from '../../../config/languages';
+import { useForm } from 'react-hook-form';
+import { useParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { AnimatePresence, motion } from 'framer-motion';
 
-interface Model {
-  id: string;
+import { getTranslation } from '@/app/utils/translations';
+import type { Language } from '@/app/config/languages';
+
+// Form data type
+interface FormData {
   name: string;
+  goal: string;
+  positiveThoughts: string;
+  negativeThoughts: string;
+  email: string;
 }
 
 export default function CreateGamePage() {
-  const router = useRouter();
   const params = useParams();
-  const lang = params.lang as string;
+  const router = useRouter();
+  const [lang, setLang] = useState<Language>('en');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [gameUrl, setGameUrl] = useState<string | null>(null);
   
-  const [userInput, setUserInput] = useState('');
-  const [models, setModels] = useState<Model[]>([]);
-  const [selectedModel, setSelectedModel] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [resultUrl, setResultUrl] = useState('');
-
-  const examples = [
-    'Anxiety about job loss',
-    'Feeling overwhelmed by responsibilities',
-    'Perfectionism',
-    'Impostor syndrome',
-    'Fear of rejection'
-  ];
-
+  // Initialize language from URL params
   useEffect(() => {
-    // Fetch available models
-    axios.get('/api/games/models')
-      .then(response => {
-        if (response.data.models && response.data.models.length > 0) {
-          setModels(response.data.models);
-          setSelectedModel(response.data.models[0].id);
-        }
-      })
-      .catch(err => {
-        console.error('Error fetching models:', err);
-        setError('Failed to load AI models. Using default model instead.');
-        // Set a default model if API fails
-        setSelectedModel('mistralai/Mixtral-8x7B-Instruct-v0.1');
-      });
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!userInput.trim()) {
-      setError('Please enter what you are struggling with.');
-      return;
+    if (params.lang) {
+      const langParam = params.lang as string;
+      const validLang = ['en', 'de'].includes(langParam) ? langParam as Language : 'en';
+      setLang(validLang);
     }
-    
-    setIsLoading(true);
-    setError('');
-    setResultUrl('');
+  }, [params]);
+
+  // Translation helper
+  const t = (key: string, defaultValue: string) => {
+    try {
+      return getTranslation(key as any, lang) || defaultValue;
+    } catch {
+      return defaultValue;
+    }
+  };
+
+  const { register, handleSubmit, formState: { errors }, watch, reset } = useForm<FormData>();
+
+  const onSubmit = async (data: FormData) => {
+    setLoading(true);
+    setError(null);
     
     try {
-      const response = await axios.post('/api/games/create', {
-        userInput,
-        model: selectedModel
+      const response = await fetch('/api/games/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...data,
+          lang
+        }),
       });
       
-      if (response.data.success && response.data.url) {
-        setResultUrl(response.data.url);
-      } else {
-        throw new Error('Invalid response from server');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create game');
       }
-    } catch (err) {
-      console.error('Error creating game:', err);
-      setError('Failed to create game. Please try again.');
+      
+      const result = await response.json();
+      setGameUrl(result.gameUrl);
+      setSuccess(true);
+      reset();
+    } catch (err: any) {
+      setError(err.message || 'An error occurred. Please try again.');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="container-custom py-8">
-      <div className="max-w-3xl mx-auto bg-white dark:bg-neutral-800 rounded-lg shadow-md p-6 mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold mb-4 text-center text-primary-800 dark:text-primary-200">
-          {lang === 'en' ? 'Create Your Custom Therapeutic Game' : 'Erstellen Sie Ihr benutzerdefiniertes therapeutisches Spiel'}
-        </h1>
-        
-        <p className="mb-6 text-neutral-600 dark:text-neutral-300">
-          {lang === 'en' 
-            ? 'Transform your emotional challenges into an interactive 3D gaming experience. Enter a situation, emotion, or belief you\'re struggling with, and our system will generate a personalized therapeutic game to help you process and reframe negative thoughts.'
-            : 'Verwandeln Sie Ihre emotionalen Herausforderungen in ein interaktives 3D-Spielerlebnis. Geben Sie eine Situation, Emotion oder Überzeugung ein, mit der Sie zu kämpfen haben, und unser System generiert ein personalisiertes therapeutisches Spiel, das Ihnen hilft, negative Gedanken zu verarbeiten und neu zu gestalten.'}
-        </p>
-        
-        {!resultUrl ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="userInput" className="block font-medium mb-1 text-neutral-700 dark:text-neutral-200">
-                {lang === 'en' ? 'What are you struggling with?' : 'Womit kämpfen Sie?'}
-              </label>
-              <textarea 
-                id="userInput"
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                className="w-full p-3 border border-neutral-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-700 text-neutral-800 dark:text-white"
-                rows={4}
-                placeholder={lang === 'en' 
-                  ? 'Example: anxiety about job interview, feeling overwhelmed by work, etc.'
-                  : 'Beispiel: Angst vor Vorstellungsgespräch, Überforderung durch Arbeit, usw.'}
-              />
-            </div>
-            
-            <div className="flex flex-wrap gap-2 mt-2">
-              {examples.map((example, index) => (
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900">
+      {/* Hero Section */}
+      <section className="bg-primary-900 text-white py-16">
+        <div className="container-custom">
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
+            {t('createGameTitle', 'Create Your Custom Therapeutic Game')}
+          </h1>
+          <p className="text-lg md:text-xl max-w-3xl">
+            {t('createGameDescription', 'Design a personalized game to address your specific therapeutic needs and goals.')}
+          </p>
+        </div>
+      </section>
+
+      {/* Main Content */}
+      <section className="py-12">
+        <div className="container-custom max-w-4xl">
+          <AnimatePresence mode="wait">
+            {!success ? (
+              <motion.div
+                key="form"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-lg p-6 md:p-8">
+                  <h2 className="text-2xl font-bold mb-6">
+                    {t('formTitle', 'Tell us about your therapeutic goals')}
+                  </h2>
+                  
+                  {error && (
+                    <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-md">
+                      <p>{error}</p>
+                    </div>
+                  )}
+                  
+                  <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                    <div>
+                      <label htmlFor="name" className="block mb-2 font-medium">
+                        {t('nameLabel', 'Your Name')}
+                      </label>
+                      <input
+                        id="name"
+                        type="text"
+                        className="w-full p-3 border border-neutral-300 dark:border-neutral-700 rounded-md bg-white dark:bg-neutral-900"
+                        placeholder={t('namePlaceholder', 'Enter your name')}
+                        {...register('name', { required: t('nameRequired', 'Name is required') })}
+                      />
+                      {errors.name && <p className="mt-1 text-red-600 dark:text-red-400 text-sm">{errors.name.message}</p>}
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="email" className="block mb-2 font-medium">
+                        {t('emailLabel', 'Email Address')}
+                      </label>
+                      <input
+                        id="email"
+                        type="email"
+                        className="w-full p-3 border border-neutral-300 dark:border-neutral-700 rounded-md bg-white dark:bg-neutral-900"
+                        placeholder={t('emailPlaceholder', 'Enter your email')}
+                        {...register('email', { 
+                          required: t('emailRequired', 'Email is required'),
+                          pattern: {
+                            value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                            message: t('emailInvalid', 'Invalid email address')
+                          }
+                        })}
+                      />
+                      {errors.email && <p className="mt-1 text-red-600 dark:text-red-400 text-sm">{errors.email.message}</p>}
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="goal" className="block mb-2 font-medium">
+                        {t('goalLabel', 'Therapeutic Goal')}
+                      </label>
+                      <textarea
+                        id="goal"
+                        className="w-full p-3 border border-neutral-300 dark:border-neutral-700 rounded-md bg-white dark:bg-neutral-900 min-h-[100px]"
+                        placeholder={t('goalPlaceholder', 'Describe what you want to achieve with this game (e.g., manage anxiety, improve focus)')}
+                        {...register('goal', { required: t('goalRequired', 'Therapeutic goal is required') })}
+                      ></textarea>
+                      {errors.goal && <p className="mt-1 text-red-600 dark:text-red-400 text-sm">{errors.goal.message}</p>}
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="negativeThoughts" className="block mb-2 font-medium">
+                        {t('negativeThoughtsLabel', 'Negative Thoughts to Address')}
+                      </label>
+                      <textarea
+                        id="negativeThoughts"
+                        className="w-full p-3 border border-neutral-300 dark:border-neutral-700 rounded-md bg-white dark:bg-neutral-900 min-h-[100px]"
+                        placeholder={t('negativeThoughtsPlaceholder', 'List negative thoughts or beliefs you want to address')}
+                        {...register('negativeThoughts', { required: t('negativeThoughtsRequired', 'Negative thoughts are required') })}
+                      ></textarea>
+                      {errors.negativeThoughts && <p className="mt-1 text-red-600 dark:text-red-400 text-sm">{errors.negativeThoughts.message}</p>}
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="positiveThoughts" className="block mb-2 font-medium">
+                        {t('positiveThoughtsLabel', 'Positive Replacement Thoughts')}
+                      </label>
+                      <textarea
+                        id="positiveThoughts"
+                        className="w-full p-3 border border-neutral-300 dark:border-neutral-700 rounded-md bg-white dark:bg-neutral-900 min-h-[100px]"
+                        placeholder={t('positiveThoughtsPlaceholder', 'What positive thoughts would you like to reinforce?')}
+                        {...register('positiveThoughts', { required: t('positiveThoughtsRequired', 'Positive thoughts are required') })}
+                      ></textarea>
+                      {errors.positiveThoughts && <p className="mt-1 text-red-600 dark:text-red-400 text-sm">{errors.positiveThoughts.message}</p>}
+                    </div>
+                    
+                    <div className="pt-4">
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full btn-primary py-3 flex justify-center items-center"
+                      >
+                        {loading ? (
+                          <>
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            {t('creating', 'Creating your game...')}
+                          </>
+                        ) : (
+                          t('createButton', 'Create My Custom Game')
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="success"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="bg-white dark:bg-neutral-800 rounded-lg shadow-lg p-6 md:p-8 text-center"
+              >
+                <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                </div>
+                
+                <h2 className="text-2xl font-bold mb-4">
+                  {t('successTitle', 'Your game has been created!')}
+                </h2>
+                
+                <p className="mb-6 text-lg">
+                  {t('successMessage', 'Your custom therapeutic game is ready to play. You can access it at any time using the link below.')}
+                </p>
+                
+                {gameUrl && (
+                  <div className="mb-8">
+                    <a 
+                      href={gameUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="btn-primary inline-block mb-4"
+                    >
+                      {t('playGameButton', 'Play Your Game Now')}
+                    </a>
+                    
+                    <div className="mt-4 p-4 bg-neutral-100 dark:bg-neutral-700 rounded-md break-all">
+                      <p className="text-sm mb-1">{t('gameLink', 'Your game link:')}</p>
+                      <p className="font-medium select-all">{gameUrl}</p>
+                    </div>
+                  </div>
+                )}
+                
                 <button
-                  key={index}
-                  type="button"
-                  onClick={() => setUserInput(example)}
-                  className="inline-block px-3 py-1 bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600 rounded-full text-sm"
+                  onClick={() => setSuccess(false)}
+                  className="btn-outline"
                 >
-                  {example}
+                  {t('createAnotherButton', 'Create Another Game')}
                 </button>
-              ))}
-            </div>
-            
-            {models.length > 0 && (
-              <div>
-                <label htmlFor="modelSelect" className="block font-medium mb-1 text-neutral-700 dark:text-neutral-200">
-                  {lang === 'en' ? 'Choose AI Model' : 'KI-Modell auswählen'}
-                </label>
-                <select
-                  id="modelSelect"
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                  className="w-full p-3 border border-neutral-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-700 text-neutral-800 dark:text-white"
-                >
-                  {models.map((model) => (
-                    <option key={model.id} value={model.id}>
-                      {model.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              </motion.div>
             )}
-            
-            {error && (
-              <div className="p-3 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md text-red-800 dark:text-red-200">
-                {error}
-              </div>
-            )}
-            
-            <button
-              type="submit"
-              disabled={isLoading || !userInput.trim()}
-              className="w-full py-3 px-6 bg-primary-600 hover:bg-primary-700 disabled:bg-neutral-400 rounded-md text-white font-medium transition-colors"
-            >
-              {isLoading 
-                ? (lang === 'en' ? 'Creating Game...' : 'Spiel wird erstellt...') 
-                : (lang === 'en' ? 'Generate Custom Game' : 'Benutzerdefiniertes Spiel generieren')}
-            </button>
-          </form>
-        ) : (
-          <div className="text-center p-6 bg-neutral-50 dark:bg-neutral-700 rounded-lg">
-            <h2 className="text-xl font-bold mb-4 text-primary-700 dark:text-primary-300">
-              {lang === 'en' ? 'Your Custom Game is Ready!' : 'Ihr benutzerdefiniertes Spiel ist bereit!'}
-            </h2>
-            <p className="mb-4 text-neutral-600 dark:text-neutral-300">
-              {lang === 'en'
-                ? 'We\'ve created a personalized therapeutic game experience based on your input.'
-                : 'Wir haben ein personalisiertes therapeutisches Spielerlebnis basierend auf Ihrer Eingabe erstellt.'}
-            </p>
-            <div className="flex justify-center gap-4">
-              <a
-                href={resultUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block py-3 px-6 bg-primary-600 hover:bg-primary-700 rounded-md text-white font-medium transition-colors"
-              >
-                {lang === 'en' ? 'Play Your Custom Game' : 'Spielen Sie Ihr benutzerdefiniertes Spiel'}
-              </a>
-              <button
-                onClick={() => {
-                  setResultUrl('');
-                  setUserInput('');
-                }}
-                className="inline-block py-3 px-6 bg-neutral-200 dark:bg-neutral-600 hover:bg-neutral-300 dark:hover:bg-neutral-500 rounded-md font-medium transition-colors"
-              >
-                {lang === 'en' ? 'Create Another Game' : 'Weiteres Spiel erstellen'}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+          </AnimatePresence>
+        </div>
+      </section>
       
-      <div className="max-w-3xl mx-auto text-center text-sm text-neutral-500 dark:text-neutral-400">
-        <p>
-          {lang === 'en'
-            ? 'Powered by AI technology. For educational and therapeutic purposes only. Not a substitute for professional mental health care.'
-            : 'Unterstützt durch KI-Technologie. Nur für Bildungs- und therapeutische Zwecke. Kein Ersatz für professionelle psychische Gesundheitsversorgung.'}
-        </p>
-      </div>
+      {/* Back to Games */}
+      <section className="py-8 bg-neutral-100 dark:bg-neutral-800">
+        <div className="container-custom text-center">
+          <Link href={`/${lang}/games/play`} className="btn-outline">
+            {t('backToGames', 'Back to Games')}
+          </Link>
+        </div>
+      </section>
     </div>
   );
 } 

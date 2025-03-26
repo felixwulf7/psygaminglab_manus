@@ -1,8 +1,1 @@
-{
-  "/api/games/[filename]/route": "app/api/games/[filename]/route.js",
-  "/favicon.ico/route": "app/favicon.ico/route.js",
-  "/api/games/create/route": "app/api/games/create/route.js",
-  "/[lang]/games/create/page": "app/[lang]/games/create/page.js",
-  "/[lang]/page": "app/[lang]/page.js",
-  "/[lang]/games/play/page": "app/[lang]/games/play/page.js"
-}
+{}

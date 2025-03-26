@@ -11,12 +11,13 @@ interface PlayGamesPageProps {
 
 export async function generateMetadata({ params }: PlayGamesPageProps): Promise<Metadata> {
   // Validate language
-  if (!isValidLanguage(params.lang)) {
+  const lang = await params.lang;
+  if (!isValidLanguage(lang)) {
     return {};
   }
   
-  const title = params.lang === 'en' ? 'Play Therapeutic Games' : 'Therapeutische Spiele spielen';
-  const description = params.lang === 'en' 
+  const title = lang === 'en' ? 'Play Therapeutic Games' : 'Therapeutische Spiele spielen';
+  const description = lang === 'en' 
     ? 'Access our collection of therapeutic games designed to support mental wellbeing.'
     : 'Greifen Sie auf unsere Sammlung therapeutischer Spiele zu, die entwickelt wurden, um das psychische Wohlbefinden zu unterstützen.';
   
@@ -26,16 +27,17 @@ export async function generateMetadata({ params }: PlayGamesPageProps): Promise<
   };
 }
 
-export default function PlayGamesPage({ params }: PlayGamesPageProps) {
+export default async function PlayGamesPage({ params }: PlayGamesPageProps) {
   // Validate language parameter
-  if (!isValidLanguage(params.lang)) {
+  const lang = await params.lang;
+  if (!isValidLanguage(lang)) {
     return null;
   }
   
-  const lang = params.lang as 'en' | 'de';
+  const langCode = lang as 'en' | 'de';
   const t = (key: TranslationKey) => {
     try {
-      return getTranslation(key, lang);
+      return getTranslation(key, langCode);
     } catch {
       return key;
     }
@@ -45,8 +47,8 @@ export default function PlayGamesPage({ params }: PlayGamesPageProps) {
   const games = [
     {
       id: 'mental-health-matching',
-      title: lang === 'en' ? 'Mental Health Matching Game' : 'Psychische Gesundheit Matching-Spiel',
-      description: lang === 'en' 
+      title: langCode === 'en' ? 'Mental Health Matching Game' : 'Psychische Gesundheit Matching-Spiel',
+      description: langCode === 'en' 
         ? 'Match pairs of cards to improve focus and memory while learning about mental health concepts.'
         : 'Ordnen Sie Kartenpaare zu, um Fokus und Gedächtnis zu verbessern und gleichzeitig etwas über Konzepte der psychischen Gesundheit zu lernen.',
       path: '/games/mental-health-matching-game.html',
@@ -54,8 +56,8 @@ export default function PlayGamesPage({ params }: PlayGamesPageProps) {
     },
     {
       id: 'mindful-starship',
-      title: lang === 'en' ? 'Mindful Starship' : 'Achtsames Raumschiff',
-      description: lang === 'en' 
+      title: langCode === 'en' ? 'Mindful Starship' : 'Achtsames Raumschiff',
+      description: langCode === 'en' 
         ? 'Navigate a starship through space while practicing mindfulness and focused attention.'
         : 'Navigieren Sie ein Raumschiff durch den Weltraum, während Sie Achtsamkeit und fokussierte Aufmerksamkeit üben.',
       path: '/games/mindful-starship.html',
@@ -63,8 +65,8 @@ export default function PlayGamesPage({ params }: PlayGamesPageProps) {
     },
     {
       id: 'mindful-snake',
-      title: lang === 'en' ? 'Mindful Snake' : 'Achtsame Schlange',
-      description: lang === 'en' 
+      title: langCode === 'en' ? 'Mindful Snake' : 'Achtsame Schlange',
+      description: langCode === 'en' 
         ? 'A calming twist on the classic snake game that encourages mindful focus and relaxation.'
         : 'Eine beruhigende Variante des klassischen Schlangenspiels, das achtsamen Fokus und Entspannung fördert.',
       path: '/games/mindful-snake (1).html',
@@ -72,8 +74,8 @@ export default function PlayGamesPage({ params }: PlayGamesPageProps) {
     },
     {
       id: 'psyjump',
-      title: lang === 'en' ? 'PsyJump' : 'PsyJump',
-      description: lang === 'en' 
+      title: langCode === 'en' ? 'PsyJump' : 'PsyJump',
+      description: langCode === 'en' 
         ? 'A jumping game that helps build resilience and focus through progressive challenges.'
         : 'Ein Sprungspiel, das durch progressive Herausforderungen hilft, Resilienz und Fokus aufzubauen.',
       path: '/games/psyjump.html',
@@ -81,8 +83,8 @@ export default function PlayGamesPage({ params }: PlayGamesPageProps) {
     },
     {
       id: 'shooter-accepting-being-tired',
-      title: lang === 'en' ? '3D Shooter: Accepting Being Tired' : '3D-Shooter: Müdigkeit akzeptieren',
-      description: lang === 'en' 
+      title: langCode === 'en' ? '3D Shooter: Accepting Being Tired' : '3D-Shooter: Müdigkeit akzeptieren',
+      description: langCode === 'en' 
         ? 'Learn to accept feelings of tiredness while engaging in an immersive 3D shooter experience.'
         : 'Lernen Sie, Müdigkeitsgefühle zu akzeptieren, während Sie in ein immersives 3D-Shooter-Erlebnis eintauchen.',
       path: '/games/3d_shooter_accepting_being_tired.html',
@@ -90,8 +92,8 @@ export default function PlayGamesPage({ params }: PlayGamesPageProps) {
     },
     {
       id: 'shooter-performance-fear',
-      title: lang === 'en' ? '3D Shooter: Dealing with Performance Fear' : '3D-Shooter: Umgang mit Leistungsangst',
-      description: lang === 'en' 
+      title: langCode === 'en' ? '3D Shooter: Dealing with Performance Fear' : '3D-Shooter: Umgang mit Leistungsangst',
+      description: langCode === 'en' 
         ? 'Confront and overcome performance anxiety through this therapeutic 3D shooter game.'
         : 'Konfrontieren und überwinden Sie Leistungsangst durch dieses therapeutische 3D-Shooter-Spiel.',
       path: '/games/3d_shooter_performance_fear.html',
@@ -99,8 +101,8 @@ export default function PlayGamesPage({ params }: PlayGamesPageProps) {
     },
     {
       id: 'shooter-self-doubt',
-      title: lang === 'en' ? '3D Shooter: Dealing with Self Doubt' : '3D-Shooter: Umgang mit Selbstzweifeln',
-      description: lang === 'en' 
+      title: langCode === 'en' ? '3D Shooter: Dealing with Self Doubt' : '3D-Shooter: Umgang mit Selbstzweifeln',
+      description: langCode === 'en' 
         ? 'Address feelings of self-doubt while engaging in an interactive 3D shooter experience.'
         : 'Gehen Sie auf Gefühle von Selbstzweifeln ein, während Sie ein interaktives 3D-Shooter-Erlebnis erleben.',
       path: '/games/3d_shooter_dealing_with_self_doubt.html',
@@ -108,8 +110,8 @@ export default function PlayGamesPage({ params }: PlayGamesPageProps) {
     },
     {
       id: 'shooter-emotional-presence',
-      title: lang === 'en' ? '3D Shooter: Emotional Presence' : '3D-Shooter: Emotionale Präsenz',
-      description: lang === 'en' 
+      title: langCode === 'en' ? '3D Shooter: Emotional Presence' : '3D-Shooter: Emotionale Präsenz',
+      description: langCode === 'en' 
         ? 'Practice emotional awareness and presence through this engaging 3D shooter game.'
         : 'Üben Sie emotionales Bewusstsein und Präsenz durch dieses ansprechende 3D-Shooter-Spiel.',
       path: '/games/3d_shooter_emotional_presence.html',
