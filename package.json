@@ -10,14 +10,20 @@
   },
   "dependencies": {
     "autoprefixer": "^10.4.21",
-    "next": "14.2.23",
+    "axios": "^1.8.4",
+    "fs": "^0.0.1-security",
+    "nanoid": "^5.0.4",
+    "next": "^15.2.4",
+    "path": "^0.12.7",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "three": "^0.162.0"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/three": "^0.162.0",
     "eslint": "^8",
     "eslint-config-next": "14.2.23",
     "postcss": "^8.5.3",

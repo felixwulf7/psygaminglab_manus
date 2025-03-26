@@ -97,6 +97,18 @@ export default function Header({ lang }: HeaderProps) {
             {lang === 'en' ? 'Play Games' : 'Spiele spielen'}
           </Link>
 
+          {/* Create Custom Game Link */}
+          <Link
+            href={`/${lang}/games/create`}
+            className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              isActive(`/${lang}/games/create`)
+                ? 'bg-primary-50 text-primary-800 dark:bg-primary-900 dark:text-primary-200'
+                : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
+            }`}
+          >
+            {lang === 'en' ? 'Create Your Custom Game' : 'Erstellen Sie Ihr Spiel'}
+          </Link>
+
           <Link
             href={`/${lang}/contact`}
             className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -194,6 +206,19 @@ export default function Header({ lang }: HeaderProps) {
             onClick={() => setIsMenuOpen(false)}
           >
             {lang === 'en' ? 'Play Games' : 'Spiele spielen'}
+          </Link>
+
+          {/* Create Custom Game Link in Mobile Menu */}
+          <Link
+            href={`/${lang}/games/create`}
+            className={`block px-3 py-2 rounded-md text-base font-medium ${
+              isActive(`/${lang}/games/create`)
+                ? 'bg-primary-50 text-primary-800 dark:bg-primary-900 dark:text-primary-200'
+                : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
+            }`}
+            onClick={() => setIsMenuOpen(false)}
+          >
+            {lang === 'en' ? 'Create Your Custom Game' : 'Erstellen Sie Ihr Spiel'}
           </Link>
 
           <Link

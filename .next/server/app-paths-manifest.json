@@ -1,0 +1,8 @@
+{
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/api/games/models/route": "app/api/games/models/route.js",
+  "/api/games/create/route": "app/api/games/create/route.js",
+  "/page": "app/page.js",
+  "/[lang]/games/create/page": "app/[lang]/games/create/page.js",
+  "/[lang]/page": "app/[lang]/page.js"
+}
